@@ -17,7 +17,7 @@ var sheetsLink = "https://docs.google.com/spreadsheets/d/1hmDypfJm73C6996CQngV1N
 var controller = Botkit.slackbot({
  debug: false
 });
-var maxRows = 100;
+var maxRows = 200;
 var bot = controller.spawn({
   token: process.env.SLACK_TOKEN
 });
@@ -144,6 +144,7 @@ function timeIn(bot, message, renewMessage, tstamp){
                             if(cells[dateSelectionIndex].value == today){
                                 skipTimeIn = true;
                                 bot.reply(message, renewMessage);
+                                break;
                             }
                         }
                     }
@@ -198,6 +199,7 @@ function renew(bot, message, tstamp, date){
                                 setCellValue(rowEntryIndex, 5, 5, 0, "");
                                 setCellValue(rowEntryIndex, 6, 6, 0, "");
                                 bot.reply(message, '<@'+message.user+'>, you have timed in again.');
+                                break;
                             }
                         }
                     }
@@ -254,8 +256,9 @@ function timeOut(bot, message, tstamp){
 controller.hears(['^help$'], 'direct_message,direct_mention,mention', function(bot,message) {
     bot.reply(message, 'Command Format: \n' +
         '@bundy <command> \n' +
-        'Timestamp Format: HH:MM:SS 24-hr format \n\n' +
-        'Limitations: Currently limited to 100 rows. After exceeding, please delete entries in the excel sheet\n'+
+        'Timestamp Format: HH:MM:SS 24-hr format \n' +
+        'Timezone: Asia/Manila \n\n' +
+        'Limitations: Currently limited to 200 rows. After exceeding, please delete entries in the excel sheet\n'+
         'Commands:\n'+
         'in \n\t\t times user in\n' +
         'out \n\t\t times user out\n' +
@@ -393,6 +396,7 @@ controller.hears(['^user (.*) (.*) (.*)$'], 'direct_message,direct_mention,menti
                                                 if(cells[dateSelectionIndex].value == today){
                                                     skipTimeIn = true;
                                                     bot.reply(message, 'Please type <user renew username/timestamp timestamp/username> to time in again');
+                                                    break;
                                                 }
                                             }
                                         }
@@ -442,6 +446,7 @@ controller.hears(['^user (.*) (.*) (.*)$'], 'direct_message,direct_mention,menti
                                                     setCellValue(rowEntryIndex, 5, 5, 0, timeInput);
                                                     setCellValue(rowEntryIndex, 6, 6, 0, '=E'+rowEntryIndex+'-'+'D'+rowEntryIndex);
                                                     bot.reply(message, '<@'+message.user+'>, you have timed out '+'<@'+userId+'>');
+                                                    break;
                                                 }
                                             }
                                         }
@@ -488,6 +493,7 @@ controller.hears(['^user (.*) (.*) (.*)$'], 'direct_message,direct_mention,menti
                                                     setCellValue(rowEntryIndex, 5, 5, 0, "");
                                                     setCellValue(rowEntryIndex, 6, 6, 0, "");
                                                     bot.reply(message, '<@'+message.user+'>, you have renewed '+'<@'+userId+'>\'s time in.');
+                                                    break;
                                                 }
                                             }
                                         }
@@ -561,6 +567,7 @@ controller.hears(['^user (.*) (.*)$'], 'direct_message,direct_mention,mention', 
                                         if(cells[dateSelectionIndex].value == today){
                                             skipTimeIn = true;
                                             bot.reply(message, 'Please type <user renew username/timestamp timestamp/username> to time in again');
+                                            break;
                                         }
                                     }
                                 }
@@ -610,6 +617,7 @@ controller.hears(['^user (.*) (.*)$'], 'direct_message,direct_mention,mention', 
                                             setCellValue(rowEntryIndex, 5, 5, 0, timeInput);
                                             setCellValue(rowEntryIndex, 6, 6, 0, '=E'+rowEntryIndex+'-'+'D'+rowEntryIndex);
                                             bot.reply(message, '<@'+message.user+'>, you have timed out '+'<@'+userId+'>');
+                                            break;
                                         }
                                     }
                                 }
@@ -656,6 +664,7 @@ controller.hears(['^user (.*) (.*)$'], 'direct_message,direct_mention,mention', 
                                             setCellValue(rowEntryIndex, 5, 5, 0, "");
                                             setCellValue(rowEntryIndex, 6, 6, 0, "");
                                             bot.reply(message, '<@'+message.user+'>, you have renewed '+'<@'+userId+'>\'s time in.');
+                                            break;
                                         }
                                     }
                                 }
