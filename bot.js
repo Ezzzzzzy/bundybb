@@ -265,7 +265,7 @@ controller.hears(['^help$'], 'direct_message,direct_mention,mention', function(b
     );
  })
 controller.hears(['^in$'], 'direct_message,direct_mention,mention', function(bot, message) {
-    var timestamp =moment().format('HH:mm:ss');
+    var timestamp =moment().tz("Asia/Manila").format('HH:mm:ss');
     var renewMsg = 'Please type <renew> to time in again';
     timeIn(bot, message, renewMsg, timestamp);
  })
