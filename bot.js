@@ -265,16 +265,16 @@ controller.hears(['^help$'], 'direct_message,direct_mention,mention', function(b
     );
  })
 controller.hears(['^in$'], 'direct_message,direct_mention,mention', function(bot, message) {
-    var timestamp =moment().tz("Asia/Manila").format('HH:mm:ss');
+    var timestamp =moment().format('HH:mm:ss').tz("Asia/Manila");
     var renewMsg = 'Please type <renew> to time in again';
     timeIn(bot, message, renewMsg, timestamp);
  })
 controller.hears(['^renew$'], 'direct_message,direct_mention,mention', function(bot,message){
-    var timestamp = moment().format('HH:mm:ss');
+    var timestamp = moment().format('HH:mm:ss').tz("Asia/Manila");
     renew(bot, message, timestamp);
  })
 controller.hears(['^out$'], 'direct_message,direct_mention,mention', function(bot,message) {
-    var timestamp = moment().format('HH:mm:ss');
+    var timestamp = moment().format('HH:mm:ss').tz("Asia/Manila");
     console.log(timestamp);
     timeOut(bot, message, timestamp);  
  })
@@ -519,7 +519,7 @@ controller.hears(['^user (.*) (.*) (.*)$'], 'direct_message,direct_mention,menti
 controller.hears(['^user (.*) (.*)$'], 'direct_message,direct_mention,mention', function(bot,message) {
     var command = message.match[1];
     var field1 = message.match[2];
-    var timeInput = moment().format('HH:mm:ss'); 
+    var timeInput = moment().format('HH:mm:ss').tz("Asia/Manila"); 
     var userId;
 
     var skipTimeIn = false;
