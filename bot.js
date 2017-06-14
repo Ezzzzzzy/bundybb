@@ -12,6 +12,7 @@ if (!process.env.SLACK_TOKEN) {
 var Botkit = require('botkit');
 var fs = require('fs');
 var os = require('os');
+var timezone = "Asia/Manila";
 var sheetsLink = "https://docs.google.com/spreadsheets/d/1hmDypfJm73C6996CQngV1N5s-KPApycENq7Xzg33g0c/edit?usp=sharing";
 var controller = Botkit.slackbot({
  debug: false
@@ -35,7 +36,7 @@ controller.setupWebserver(process.env.PORT || 3001, function(err, webserver) {
 
 var GoogleSpreadsheet = require('google-spreadsheet');
 var creds = require('./client_secret.json');
-var moment = require('moment');
+var moment = require('moment-timezone');
 moment().format();
 var spreadsheetId = '1hmDypfJm73C6996CQngV1N5s-KPApycENq7Xzg33g0c';
 var doc = new GoogleSpreadsheet(spreadsheetId);
@@ -265,16 +266,16 @@ controller.hears(['^help$'], 'direct_message,direct_mention,mention', function(b
     );
  })
 controller.hears(['^in$'], 'direct_message,direct_mention,mention', function(bot, message) {
-    var timestamp =moment().format('HH:mm:ss').tz("Asia/Manila");
+    var timestamp =moment().tz(timezone).format('HH:mm:ss');
     var renewMsg = 'Please type <renew> to time in again';
     timeIn(bot, message, renewMsg, timestamp);
  })
 controller.hears(['^renew$'], 'direct_message,direct_mention,mention', function(bot,message){
-    var timestamp = moment().format('HH:mm:ss').tz("Asia/Manila");
+    var timestamp = moment().tz(timezone).format('HH:mm:ss');
     renew(bot, message, timestamp);
  })
 controller.hears(['^out$'], 'direct_message,direct_mention,mention', function(bot,message) {
-    var timestamp = moment().format('HH:mm:ss').tz("Asia/Manila");
+    var timestamp = moment().tz(timezone).format('HH:mm:ss');
     console.log(timestamp);
     timeOut(bot, message, timestamp);  
  })
@@ -519,7 +520,7 @@ controller.hears(['^user (.*) (.*) (.*)$'], 'direct_message,direct_mention,menti
 controller.hears(['^user (.*) (.*)$'], 'direct_message,direct_mention,mention', function(bot,message) {
     var command = message.match[1];
     var field1 = message.match[2];
-    var timeInput = moment().format('HH:mm:ss').tz("Asia/Manila"); 
+    var timeInput = moment().tz(timezone).format('HH:mm:ss'); 
     var userId;
 
     var skipTimeIn = false;
