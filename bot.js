@@ -257,8 +257,8 @@ controller.hears(['^help$'], 'direct_message,direct_mention,mention', function(b
     bot.reply(message, 'Command Format: \n' +
         '@bundy <command> \n' +
         'Timestamp Format: HH:MM:SS 24-hr format \n' +
-        'Timezone: Asia/Manila \n\n' +
-        'Limitations: Currently limited to 200 rows. After exceeding, please delete entries in the excel sheet\n'+
+        'Timezone: Asia/Manila \n' +
+        'Limitations: Currently limited to 200 rows. After exceeding, please delete entries in the excel sheet\n\n'+
         'Commands:\n'+
         'in \n\t\t times user in\n' +
         'out \n\t\t times user out\n' +
