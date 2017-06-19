@@ -7,7 +7,7 @@ require('dotenv').config()//test environment
 if (!process.env.SLACK_TOKEN) {
     console.log('Error: Specify SLACK_TOKEN in environment');
     process.exit(1);
-}
+ }
 
 //get BotKit to spawn bot
 var Botkit = require('botkit');
@@ -33,7 +33,7 @@ controller.setupWebserver(process.env.PORT || 3001, function(err, webserver) {
     controller.createWebhookEndpoints(webserver, bot, function() {
         // handle errors...
     });
-});
+ });
 
 var GoogleSpreadsheet = require('google-spreadsheet');
 var creds = require('./client_secret.json');
@@ -41,22 +41,20 @@ var moment = require('moment-timezone');
 moment().format();
 var spreadsheetId = '1hmDypfJm73C6996CQngV1N5s-KPApycENq7Xzg33g0c';
 var doc = new GoogleSpreadsheet(spreadsheetId);
-app.listen(process.env.PORT || 3001);
+//app.listen(process.env.PORT || 3001, function(){});
 //setup size of doc
+var worksheetNum = 1;
+
+//***sets the current worksheet in the workbook
 doc.useServiceAccountAuth(creds, function (err) {
     //if (err) console.log(err);
     doc.getInfo(function(err, response) {
             response.worksheets[0].resize({ 
                 'rowCount':''+maxRows, 
                 'colCount': 6
-            },
-            function(err){
-
-            })
-        });
-    });
-
-
+            },function(err){});
+            worksheetNum = response.worksheets.length;
+            console.log("Bundy initialized. Working with sheet number " + worksheetNum);
 //===
 //bot commands
 //===
@@ -65,7 +63,7 @@ doc.useServiceAccountAuth(creds, function (err) {
  *************************/
 function setCellValue(row_index, col_index, col_range, val_index, val){
     doc.useServiceAccountAuth(creds, function (err) {
-        doc.getCells(1, {
+        doc.getCells(worksheetNum, {
             'min-row': row_index, 
             'max-row': row_index, 
             'min-col': col_index,
@@ -128,24 +126,6 @@ function timestampToSeconds(timestamp){
  }
 
 /*************************
- *********routes**********
- *************************/
- //route to new sheet
-app.get('/new_sheet', function(req, res) {
-    doc.useServiceAccountAuth(creds, function (err) {
-        if (err)
-            console.log(err);
-        doc.addWorksheet({
-                'title':''+moment.month()+moment.year(),
-                'rowCount': ''+maxRows, 
-                'colCount':'6', 
-                'headers':['Username', 'Name', 'Date', 'Time In', 'Time Out', 'Hours']
-            });
-        });
-    });
-
-
-/*************************
  *****bundy-functions*****
  *************************/
 function timeIn(bot, message, renewMessage, tstamp){
@@ -160,7 +140,7 @@ function timeIn(bot, message, renewMessage, tstamp){
 
     bot.api.users.info({user:message.user},function(err,response) {
         doc.useServiceAccountAuth(creds, function (err) {
-            doc.getCells(1, {
+            doc.getCells(worksheetNum, {
                 'min-row': 2, 
                 'max-row': maxRows, 
                 'min-col': 1,
@@ -169,7 +149,7 @@ function timeIn(bot, message, renewMessage, tstamp){
             }, 
             function (err, cells) {
                 //iterates through all username values
-                while(cells[nameSelectionIndex]!=null){
+                while(cells[nameSelectionIndex]!=null && (nameSelectionIndex/3) < maxRows){
                     //checks if name is equal
                     if(cells[nameSelectionIndex].value == response.user.name){
                         //checks if there is a date
@@ -190,11 +170,16 @@ function timeIn(bot, message, renewMessage, tstamp){
                 //if user hasn't timed in yet
                 rowEntryIndex += (nameSelectionIndex/3);
                 if(!skipTimeIn) {
-                    setCellValue(rowEntryIndex, 1, 1, 0, response.user.name);
-                    setCellValue(rowEntryIndex, 2, 2, 0, response.user.profile.real_name);
-                    setCellValue(rowEntryIndex, 3, 3, 0, today);
-                    setCellValue(rowEntryIndex, 4, 4, 0, tstamp);
-                    bot.reply(message, '<@'+message.user+'>, you have timed in.');
+                    if(rowEntryIndex > maxRows){
+                        bot.reply(message, 'Storage full. Please type @bundy new sheet');
+                    }
+                    else{
+                        setCellValue(rowEntryIndex, 1, 1, 0, response.user.name);
+                        setCellValue(rowEntryIndex, 2, 2, 0, response.user.profile.real_name);
+                        setCellValue(rowEntryIndex, 3, 3, 0, today);
+                        setCellValue(rowEntryIndex, 4, 4, 0, tstamp);
+                        bot.reply(message, '<@'+message.user+'>, you have timed in.');
+                    }
                 }
             });
         });
@@ -212,7 +197,7 @@ function renew(bot, message, tstamp, date){
 
     bot.api.users.info({user:message.user},function(err,response) {
         doc.useServiceAccountAuth(creds, function (err) {
-            doc.getCells(1, {
+            doc.getCells(worksheetNum, {
                 'min-row': 2, 
                 'max-row': maxRows, 
                 'min-col': 1,
@@ -254,7 +239,7 @@ function timeOut(bot, message, tstamp){
     var today = dateDMY();
     bot.api.users.info({user:message.user},function(err,response) {
         doc.useServiceAccountAuth(creds, function (err) {
-            doc.getCells(1, {
+            doc.getCells(worksheetNum, {
                 'min-row': 2, 
                 'max-row': maxRows, 
                 'min-col': 1,
@@ -286,8 +271,6 @@ function timeOut(bot, message, tstamp){
         });
     });
  }
-
-
 controller.hears(['^help$'], 'direct_message,direct_mention,mention', function(bot,message) {
     bot.reply(message, 'Command Format: \n' +
         '@bundy <command> \n' +
@@ -303,7 +286,6 @@ controller.hears(['^help$'], 'direct_message,direct_mention,mention', function(b
         'user in/out/renew timestamp/username username/timestamp \n\t\t times in/out or renews time in of specified user at timestamp' 
     );
  })
-
 controller.hears(['^in$'], 'direct_message,direct_mention,mention', function(bot, message) {
     var timestamp =moment().tz(timezone).format('HH:mm:ss');
     var renewMsg = 'Please type <renew> to time in again';
@@ -338,7 +320,7 @@ controller.hears(['^hours$'], 'direct_message,direct_mention,mention', function(
 
     bot.api.users.info({user:message.user}, function(err,response) {
         doc.useServiceAccountAuth(creds, function (err) {
-            doc.getCells(1, {
+            doc.getCells(worksheetNum, {
                 'min-row': 2, 
                 'max-row': maxRows, 
                 'min-col': 1,
@@ -380,6 +362,24 @@ controller.hears(['^hours$'], 'direct_message,direct_mention,mention', function(
         });
     });
  })
+controller.hears(['^new sheet$'], 'direct_message,direct_mention,mention', function(bot,message) {
+    var worksheetTemp;
+    doc.useServiceAccountAuth(creds, function (err) {
+        if (err)
+            console.log(err);
+        doc.addWorksheet({
+            'rowCount': ''+maxRows, 
+            'colCount':'6', 
+            'headers':['Username', 'Name', 'Date', 'Time In', 'Time Out', 'Hours']
+        }, 
+        function(err){
+           doc.getInfo(function(err, response){
+                worksheetNum = response.worksheets.length;
+                bot.reply(message, 'You have created a new sheet.');
+           })
+        });
+    });
+ });
 controller.hears(['^user (.*) (.*) (.*)$'], 'direct_message,direct_mention,mention', function(bot,message) {
     var command = message.match[1];
     var field1 = message.match[2];
@@ -414,7 +414,7 @@ controller.hears(['^user (.*) (.*) (.*)$'], 'direct_message,direct_mention,menti
                     for(var i = 0; i < response.members.length; i++){
                         if(response.members[i].id==userId){
                             doc.useServiceAccountAuth(creds, function (err) {
-                                doc.getCells(1, {
+                                doc.getCells(worksheetNum, {
                                     'min-row': 2, 
                                     'max-row': maxRows, 
                                     'min-col': 1,
@@ -423,7 +423,7 @@ controller.hears(['^user (.*) (.*) (.*)$'], 'direct_message,direct_mention,menti
                                 }, 
                                 function (err, cells) {
                                     //iterates through all username values
-                                    while(cells[nameSelectionIndex]!=null){
+                                    while(cells[nameSelectionIndex]!=null && (nameSelectionIndex/3) < maxRows){
                                         //checks if name is equal
                                         if(cells[nameSelectionIndex].value == response.members[i].name){
                                             //checks if there is a date
@@ -444,11 +444,16 @@ controller.hears(['^user (.*) (.*) (.*)$'], 'direct_message,direct_mention,menti
                                     //if user hasn't timed in yet
                                     rowEntryIndex += (nameSelectionIndex/3);
                                     if(!skipTimeIn) {
-                                        setCellValue(rowEntryIndex, 1, 1, 0, response.members[i].name);
-                                        setCellValue(rowEntryIndex, 2, 2, 0, response.members[i].real_name);
-                                        setCellValue(rowEntryIndex, 3, 3, 0, today);
-                                        setCellValue(rowEntryIndex, 4, 4, 0, timeInput);
-                                        bot.reply(message, '<@'+message.user+'>, you have timed in '+'<@'+userId+'>');
+                                        if(rowEntryIndex > maxRows){
+                                            bot.reply(message, 'Storage full. Please type @bundy new sheet');
+                                        }
+                                        else{
+                                            setCellValue(rowEntryIndex, 1, 1, 0, response.members[i].name);
+                                            setCellValue(rowEntryIndex, 2, 2, 0, response.members[i].real_name);
+                                            setCellValue(rowEntryIndex, 3, 3, 0, today);
+                                            setCellValue(rowEntryIndex, 4, 4, 0, timeInput);
+                                            bot.reply(message, '<@'+message.user+'>, you have timed in '+'<@'+userId+'>');
+                                        }
                                     }
                                 });
                             });
@@ -462,7 +467,7 @@ controller.hears(['^user (.*) (.*) (.*)$'], 'direct_message,direct_mention,menti
                     for(var i = 0; i < response.members.length; i++){
                         if(response.members[i].id==userId){
                             doc.useServiceAccountAuth(creds, function (err) {
-                                doc.getCells(1, {
+                                doc.getCells(worksheetNum, {
                                     'min-row': 2, 
                                     'max-row': maxRows, 
                                     'min-col': 1,
@@ -508,7 +513,7 @@ controller.hears(['^user (.*) (.*) (.*)$'], 'direct_message,direct_mention,menti
                     for(var i = 0; i < response.members.length; i++){
                         if(response.members[i].id==userId){
                             doc.useServiceAccountAuth(creds, function (err) {
-                                doc.getCells(1, {
+                                doc.getCells(worksheetNum, {
                                     'min-row': 2, 
                                     'max-row': maxRows, 
                                     'min-col': 1,
@@ -585,7 +590,7 @@ controller.hears(['^user (.*) (.*)$'], 'direct_message,direct_mention,mention', 
             for(var i = 0; i < response.members.length; i++){
                 if(response.members[i].id==userId){
                     doc.useServiceAccountAuth(creds, function (err) {
-                        doc.getCells(1, {
+                        doc.getCells(worksheetNum, {
                             'min-row': 2, 
                             'max-row': maxRows, 
                             'min-col': 1,
@@ -594,7 +599,7 @@ controller.hears(['^user (.*) (.*)$'], 'direct_message,direct_mention,mention', 
                         }, 
                         function (err, cells) {
                             //iterates through all username values
-                            while(cells[nameSelectionIndex]!=null){
+                            while(cells[nameSelectionIndex]!=null && (nameSelectionIndex/3) < maxRows){
                                 //checks if name is equal
                                 if(cells[nameSelectionIndex].value == response.members[i].name){
                                     //checks if there is a date
@@ -615,11 +620,16 @@ controller.hears(['^user (.*) (.*)$'], 'direct_message,direct_mention,mention', 
                             //if user hasn't timed in yet
                             rowEntryIndex += (nameSelectionIndex/3);
                             if(!skipTimeIn) {
-                                setCellValue(rowEntryIndex, 1, 1, 0, response.members[i].name);
-                                setCellValue(rowEntryIndex, 2, 2, 0, response.members[i].real_name);
-                                setCellValue(rowEntryIndex, 3, 3, 0, today);
-                                setCellValue(rowEntryIndex, 4, 4, 0, timeInput);
-                                bot.reply(message, '<@'+message.user+'>, you have timed in '+'<@'+userId+'>');
+                                if(rowEntryIndex > maxRows){
+                                    bot.reply(message, 'Storage full. Please type @bundy new sheet');
+                                }
+                                else{
+                                    setCellValue(rowEntryIndex, 1, 1, 0, response.members[i].name);
+                                    setCellValue(rowEntryIndex, 2, 2, 0, response.members[i].real_name);
+                                    setCellValue(rowEntryIndex, 3, 3, 0, today);
+                                    setCellValue(rowEntryIndex, 4, 4, 0, timeInput);
+                                    bot.reply(message, '<@'+message.user+'>, you have timed in '+'<@'+userId+'>');
+                                }
                             }
                         });
                     });
@@ -633,7 +643,7 @@ controller.hears(['^user (.*) (.*)$'], 'direct_message,direct_mention,mention', 
             for(var i = 0; i < response.members.length; i++){
                 if(response.members[i].id==userId){
                     doc.useServiceAccountAuth(creds, function (err) {
-                        doc.getCells(1, {
+                        doc.getCells(worksheetNum, {
                             'min-row': 2, 
                             'max-row': maxRows, 
                             'min-col': 1,
@@ -679,7 +689,7 @@ controller.hears(['^user (.*) (.*)$'], 'direct_message,direct_mention,mention', 
             for(var i = 0; i < response.members.length; i++){
                 if(response.members[i].id==userId){
                     doc.useServiceAccountAuth(creds, function (err) {
-                        doc.getCells(1, {
+                        doc.getCells(worksheetNum, {
                             'min-row': 2, 
                             'max-row': maxRows, 
                             'min-col': 1,
@@ -747,3 +757,6 @@ controller.hears(['(.*) (.*)'], 'direct_message,direct_mention,mention', functio
         bot.reply(message, "Please follow the time format (HH:MM:SS) 24-hours.");
     }
  })
+//***end of api call for setting worksheet number in workbook
+    });
+});
