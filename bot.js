@@ -2,7 +2,8 @@
 //SLACK dummy bot for botkit
 //===
 
-//test environment
+require('dotenv').config()//test environment
+
 if (!process.env.SLACK_TOKEN) {
     console.log('Error: Specify SLACK_TOKEN in environment');
     process.exit(1);
@@ -10,6 +11,7 @@ if (!process.env.SLACK_TOKEN) {
 
 //get BotKit to spawn bot
 var Botkit = require('botkit');
+var express = require('express');
 var fs = require('fs');
 var os = require('os');
 var timezone = "Asia/Manila";
@@ -21,12 +23,11 @@ var maxRows = 200;
 var bot = controller.spawn({
   token: process.env.SLACK_TOKEN
 });
-
+var app = express();
 // start Slack RTM
 bot.startRTM(function(err,bot,payload) {
   // handle errors...
 });
-
 //prepare the webhook
 controller.setupWebserver(process.env.PORT || 3001, function(err, webserver) {
     controller.createWebhookEndpoints(webserver, bot, function() {
@@ -40,6 +41,22 @@ var moment = require('moment-timezone');
 moment().format();
 var spreadsheetId = '1hmDypfJm73C6996CQngV1N5s-KPApycENq7Xzg33g0c';
 var doc = new GoogleSpreadsheet(spreadsheetId);
+
+//setup size of doc
+doc.useServiceAccountAuth(creds, function (err) {
+	//if (err) console.log(err);
+    doc.getInfo(function(err, response) {
+    		response.worksheets[0].resize({ 
+    			'rowCount':''+maxRows, 
+    			'colCount': 6
+    		},
+    		function(err){
+
+    		})
+    	});
+    });
+
+
 //===
 //bot commands
 //===
@@ -109,6 +126,23 @@ function timestampToSeconds(timestamp){
     }
     return sum;
  }
+
+/*************************
+ *********routes**********
+ *************************/
+ //route to new sheet
+app.get('/new_sheet', function(req, res) {
+	doc.useServiceAccountAuth(creds, function (err) {
+		if (err)
+			console.log(err);
+        doc.addWorksheet({
+	        	'title':''+moment.month()+moment.year(),
+	        	'rowCount': ''+maxRows, 
+	        	'colCount':'6', 
+	        	'headers':['Username', 'Name', 'Date', 'Time In', 'Time Out', 'Hours']
+        	});
+        });
+    });
 
 
 /*************************
@@ -253,6 +287,7 @@ function timeOut(bot, message, tstamp){
     });
  }
 
+
 controller.hears(['^help$'], 'direct_message,direct_mention,mention', function(bot,message) {
     bot.reply(message, 'Command Format: \n' +
         '@bundy <command> \n' +
@@ -268,6 +303,7 @@ controller.hears(['^help$'], 'direct_message,direct_mention,mention', function(b
         'user in/out/renew timestamp/username username/timestamp \n\t\t times in/out or renews time in of specified user at timestamp' 
     );
  })
+
 controller.hears(['^in$'], 'direct_message,direct_mention,mention', function(bot, message) {
     var timestamp =moment().tz(timezone).format('HH:mm:ss');
     var renewMsg = 'Please type <renew> to time in again';
@@ -711,12 +747,3 @@ controller.hears(['(.*) (.*)'], 'direct_message,direct_mention,mention', functio
         bot.reply(message, "Please follow the time format (HH:MM:SS) 24-hours.");
     }
  })
-controller.hears(['hello','hi'],['direct_message','direct_mention','mention'],function(bot,message) {
-    bot.reply(message,"Hello.");
-});
-
-
-controller.on('slash_command',function(bot,message) {
-  // reply to slash command
-  bot.replyPublic(message,'Everyone can see the results of this slash command');
-});
