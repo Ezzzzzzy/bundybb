@@ -41,19 +41,19 @@ var moment = require('moment-timezone');
 moment().format();
 var spreadsheetId = '1hmDypfJm73C6996CQngV1N5s-KPApycENq7Xzg33g0c';
 var doc = new GoogleSpreadsheet(spreadsheetId);
-
+app.listen(process.env.PORT || 3001);
 //setup size of doc
 doc.useServiceAccountAuth(creds, function (err) {
-	//if (err) console.log(err);
+    //if (err) console.log(err);
     doc.getInfo(function(err, response) {
-    		response.worksheets[0].resize({ 
-    			'rowCount':''+maxRows, 
-    			'colCount': 6
-    		},
-    		function(err){
+            response.worksheets[0].resize({ 
+                'rowCount':''+maxRows, 
+                'colCount': 6
+            },
+            function(err){
 
-    		})
-    	});
+            })
+        });
     });
 
 
@@ -132,15 +132,15 @@ function timestampToSeconds(timestamp){
  *************************/
  //route to new sheet
 app.get('/new_sheet', function(req, res) {
-	doc.useServiceAccountAuth(creds, function (err) {
-		if (err)
-			console.log(err);
+    doc.useServiceAccountAuth(creds, function (err) {
+        if (err)
+            console.log(err);
         doc.addWorksheet({
-	        	'title':''+moment.month()+moment.year(),
-	        	'rowCount': ''+maxRows, 
-	        	'colCount':'6', 
-	        	'headers':['Username', 'Name', 'Date', 'Time In', 'Time Out', 'Hours']
-        	});
+                'title':''+moment.month()+moment.year(),
+                'rowCount': ''+maxRows, 
+                'colCount':'6', 
+                'headers':['Username', 'Name', 'Date', 'Time In', 'Time Out', 'Hours']
+            });
         });
     });
 
