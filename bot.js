@@ -243,8 +243,8 @@ function timeOut(bot, message, tstamp){
                 'min-row': 2, 
                 'max-row': maxRows, 
                 'min-col': 1,
-                'max-col': 3,
-                'return-empty': false
+                'max-col': 4,
+                'return-empty': true
             }, 
             function (err, cells) {
                 //i and j are pertain to columns
@@ -253,7 +253,7 @@ function timeOut(bot, message, tstamp){
                 var rowNum = 2;
                 while(cells[i]!=null){
                     if(cells[i].value==response.user.name){
-                        if(cells[j].value==today){
+                        if(cells[j].value!=null){
                             setCellValue(rowNum, 5, 5, 0, tstamp);
                             setCellValue(rowNum, 6, 6, 0, '=E'+rowNum+'-'+'D'+rowNum);
                             bot.reply(message, '<@'+message.user+'>, you have timed out.');
@@ -263,8 +263,8 @@ function timeOut(bot, message, tstamp){
                     else if (cells[i+1]==null){
                         bot.reply(message, '<@'+message.user+'>, you have not yet timed in. Please time in first');
                     }
-                    i+=3;
-                    j+=3;
+                    i+=4;
+                    j+=4;
                     rowNum++;
                 }
             });
@@ -392,6 +392,7 @@ controller.hears(['^user (.*) (.*) (.*)$'], 'direct_message,direct_mention,menti
     //indexes that increment by three to point to the next name/date
     var nameSelectionIndex = 0;
     var dateSelectionIndex = 2;
+    var timeInSelectionIndex = 3;
 
     var rowEntryIndex = 2;
     var today = dateDMY();
@@ -471,30 +472,33 @@ controller.hears(['^user (.*) (.*) (.*)$'], 'direct_message,direct_mention,menti
                                     'min-row': 2, 
                                     'max-row': maxRows, 
                                     'min-col': 1,
-                                    'max-col': 3,
-                                    'return-empty': false
+                                    'max-col': 4,
+                                    'return-empty': true
                                 }, 
                                 function (err, cells) {
                                     //iterates through all username values
                                     while(cells[nameSelectionIndex]!=null){
                                         //checks if name is equal
                                         if(cells[nameSelectionIndex].value == response.members[i].name){
-                                            //checks if there is a date
+                                            //checks if there was a time in
                                             if(cells[dateSelectionIndex]!=null){
                                                 //checks if the date is the same date as today
                                                 if(cells[dateSelectionIndex].value == today){
-                                                    skipTimeOutErrorMessage = true;
-                                                    setCellValue(rowEntryIndex, 5, 5, 0, timeInput);
-                                                    setCellValue(rowEntryIndex, 6, 6, 0, '=E'+rowEntryIndex+'-'+'D'+rowEntryIndex);
-                                                    bot.reply(message, '<@'+message.user+'>, you have timed out '+'<@'+userId+'>');
-                                                    break;
+                                                    if(cells[timeInSelectionIndex]!=null) {
+                                                        skipTimeOutErrorMessage = true;
+                                                        setCellValue(rowEntryIndex, 5, 5, 0, timeInput);
+                                                        setCellValue(rowEntryIndex, 6, 6, 0, '=E'+rowEntryIndex+'-'+'D'+rowEntryIndex);
+                                                        bot.reply(message, '<@'+message.user+'>, you have timed out '+'<@'+userId+'>');
+                                                        break;
+                                                    }
                                                 }
                                             }
                                         }
                                         //next name
-                                        nameSelectionIndex += 3;
+                                        nameSelectionIndex += 4;
                                         //next date
-                                        dateSelectionIndex += 3;
+                                        timeInSelectionIndex += 4;
+                                        dateSelectionIndex += 4;
                                         rowEntryIndex ++;
                                     }
                                     //if user hasn't timed in yet
@@ -576,6 +580,7 @@ controller.hears(['^user (.*) (.*)$'], 'direct_message,direct_mention,mention', 
     //indexes that increment by three to point to the next name/date
     var nameSelectionIndex = 0;
     var dateSelectionIndex = 2;
+    var timeInSelectionIndex = 3;
 
     var rowEntryIndex = 2;
     var today = dateDMY();
@@ -647,8 +652,8 @@ controller.hears(['^user (.*) (.*)$'], 'direct_message,direct_mention,mention', 
                             'min-row': 2, 
                             'max-row': maxRows, 
                             'min-col': 1,
-                            'max-col': 3,
-                            'return-empty': false
+                            'max-col': 4,
+                            'return-empty': true
                         }, 
                         function (err, cells) {
                             //iterates through all username values
@@ -659,18 +664,21 @@ controller.hears(['^user (.*) (.*)$'], 'direct_message,direct_mention,mention', 
                                     if(cells[dateSelectionIndex]!=null){
                                         //checks if the date is the same date as today
                                         if(cells[dateSelectionIndex].value == today){
-                                            skipTimeOutErrorMessage = true;
-                                            setCellValue(rowEntryIndex, 5, 5, 0, timeInput);
-                                            setCellValue(rowEntryIndex, 6, 6, 0, '=E'+rowEntryIndex+'-'+'D'+rowEntryIndex);
-                                            bot.reply(message, '<@'+message.user+'>, you have timed out '+'<@'+userId+'>');
-                                            break;
+                                            if(cells[timeInSelectionIndex]!=null){
+                                                skipTimeOutErrorMessage = true;
+                                                setCellValue(rowEntryIndex, 5, 5, 0, timeInput);
+                                                setCellValue(rowEntryIndex, 6, 6, 0, '=E'+rowEntryIndex+'-'+'D'+rowEntryIndex);
+                                                bot.reply(message, '<@'+message.user+'>, you have timed out '+'<@'+userId+'>');
+                                                break;
+                                            }
                                         }
                                     }
                                 }
                                 //next name
-                                nameSelectionIndex += 3;
+                                nameSelectionIndex += 4;
                                 //next date
-                                dateSelectionIndex += 3;
+                                dateSelectionIndex += 4;
+                                timeInSelectionIndex +=4;
                                 rowEntryIndex ++;
                             }
                             //if user hasn't timed in yet
