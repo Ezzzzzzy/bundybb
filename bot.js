@@ -237,6 +237,7 @@ function renew(bot, message, tstamp, date){
  }
 function timeOut(bot, message, tstamp){
     var today = dateDMY();
+    var now, then, hours;
     bot.api.users.info({user:message.user},function(err,response) {
         doc.useServiceAccountAuth(creds, function (err) {
             doc.getCells(worksheetNum, {
@@ -249,13 +250,16 @@ function timeOut(bot, message, tstamp){
             function (err, cells) {
                 //i and j are pertain to columns
                 var i = 0; 
-                var j = 2;
+                var j = 3;
                 var rowNum = 2;
                 while(cells[i]!=null){
                     if(cells[i].value==response.user.name){
                         if(cells[j].value!=null){
+                            now = moment(tstamp,"HH:mm:ss");
+                            then = moment(cells[j].value, "HH:mm:ss");
+                            hours = moment.utc(moment(now,"HH:mm:ss").diff(moment(then, "HH:mm:ss"))).format("HH:mm:ss");
                             setCellValue(rowNum, 5, 5, 0, tstamp);
-                            setCellValue(rowNum, 6, 6, 0, '=E'+rowNum+'-'+'D'+rowNum);
+                            setCellValue(rowNum, 6, 6, 0, hours);
                             bot.reply(message, '<@'+message.user+'>, you have timed out.');
                             break;
                         }
@@ -398,6 +402,7 @@ controller.hears(['^user (.*) (.*) (.*)$'], 'direct_message,direct_mention,menti
     var today = dateDMY();
     var isTimeInputOk = false;
 
+    var now, then, hours;
     if(field2!=null &&field1!=null) {
         if(field1.substr(0,2)=='<@'){
             userId = field1.substr(2, field1.length-3);
@@ -485,9 +490,12 @@ controller.hears(['^user (.*) (.*) (.*)$'], 'direct_message,direct_mention,menti
                                                 //checks if the date is the same date as today
                                                 if(cells[dateSelectionIndex].value == today){
                                                     if(cells[timeInSelectionIndex]!=null) {
+                                                        now = moment(timeInput,"HH:mm:ss");
+                                                        then = moment(cells[timeInSelectionIndex].value, "HH:mm:ss");
+                                                        hours = moment.utc(moment(now,"HH:mm:ss").diff(moment(then, "HH:mm:ss"))).format("HH:mm:ss");
                                                         skipTimeOutErrorMessage = true;
                                                         setCellValue(rowEntryIndex, 5, 5, 0, timeInput);
-                                                        setCellValue(rowEntryIndex, 6, 6, 0, '=E'+rowEntryIndex+'-'+'D'+rowEntryIndex);
+                                                        setCellValue(rowEntryIndex, 6, 6, 0, hours);
                                                         bot.reply(message, '<@'+message.user+'>, you have timed out '+'<@'+userId+'>');
                                                         break;
                                                     }
@@ -584,8 +592,8 @@ controller.hears(['^user (.*) (.*)$'], 'direct_message,direct_mention,mention', 
 
     var rowEntryIndex = 2;
     var today = dateDMY();
-    var isTimeInputOk = false;
 
+    var now, then, hours;
     if(field1.substr(0,2)=='<@'){
         userId = field1.substr(2, field1.length-3);
     }
@@ -665,9 +673,12 @@ controller.hears(['^user (.*) (.*)$'], 'direct_message,direct_mention,mention', 
                                         //checks if the date is the same date as today
                                         if(cells[dateSelectionIndex].value == today){
                                             if(cells[timeInSelectionIndex]!=null){
+                                                now = moment(timeInput,"HH:mm:ss");
+                                                then = moment(cells[timeInSelectionIndex].value, "HH:mm:ss");
+                                                hours = moment.utc(moment(now,"HH:mm:ss").diff(moment(then, "HH:mm:ss"))).format("HH:mm:ss");
                                                 skipTimeOutErrorMessage = true;
                                                 setCellValue(rowEntryIndex, 5, 5, 0, timeInput);
-                                                setCellValue(rowEntryIndex, 6, 6, 0, '=E'+rowEntryIndex+'-'+'D'+rowEntryIndex);
+                                                setCellValue(rowEntryIndex, 6, 6, 0, hours);
                                                 bot.reply(message, '<@'+message.user+'>, you have timed out '+'<@'+userId+'>');
                                                 break;
                                             }
