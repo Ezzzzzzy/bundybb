@@ -217,7 +217,7 @@ function renew(bot, message, tstamp, date){
                                 setCellValue(rowEntryIndex, 4, 4, 0, tstamp);
                                 setCellValue(rowEntryIndex, 5, 5, 0, "");
                                 setCellValue(rowEntryIndex, 6, 6, 0, "");
-                                bot.reply(message, '<@'+message.user+'>, you have timed in again.');
+                                bot.reply(message, '<@'+message.user+'>, I have changed your time in to ' + tstamp);
                                 break;
                             }
                         }
@@ -229,14 +229,14 @@ function renew(bot, message, tstamp, date){
                 }
                 //if user hasn't timed in yet
                 if(!hasTimedInAgain) {
-                    bot.reply(message, '<@'+message.user+'>, you have not timed in yet.');                    
+                    bot.reply(message, '<@'+message.user+'>, you have not timed in yet. I cannot renew your time in.');                    
                 }
             });
         });
     });
  }
 function timeOut(bot, message, tstamp){
-    var today = dateDMY();
+    var today = moment().format('DD/MM/YYYY');
     var now, then, hours;
     bot.api.users.info({user:message.user},function(err,response) {
         doc.useServiceAccountAuth(creds, function (err) {
@@ -250,26 +250,31 @@ function timeOut(bot, message, tstamp){
             function (err, cells) {
                 //i and j are pertain to columns
                 var i = 0; 
+                var day = 2;
                 var j = 3;
                 var rowNum = 2;
                 while(cells[i]!=null){
                     if(cells[i].value==response.user.name){
-                        if(cells[j].value!=null){
-                            now = moment(tstamp,"HH:mm:ss");
-                            then = moment(cells[j].value, "HH:mm:ss");
-                            hours = moment.utc(moment(now,"HH:mm:ss").diff(moment(then, "HH:mm:ss"))).format("HH:mm:ss");
-                            setCellValue(rowNum, 5, 5, 0, tstamp);
-                            setCellValue(rowNum, 6, 6, 0, hours);
-                            bot.reply(message, '<@'+message.user+'>, you have timed out.');
-                            break;
+                        if(cells[j].value!=null && cells[day]!=null){
+                        	if(cells[day].value == today) {
+	                            now = moment(tstamp,"HH:mm:ss");
+	                            then = moment(cells[j].value, "HH:mm:ss");
+	                            hours = moment.utc(moment(now,"HH:mm:ss").diff(moment(then, "HH:mm:ss"))).format("HH:mm:ss");
+	                            setCellValue(rowNum, 5, 5, 0, tstamp);
+	                            setCellValue(rowNum, 6, 6, 0, hours);
+	                            bot.reply(message, '<@'+message.user+'>, you have timed out.');
+	                            break;
+	                        }
                         }
                     }
-                    else if (cells[i+1]==null){
-                        bot.reply(message, '<@'+message.user+'>, you have not yet timed in. Please time in first');
-                    }
+                    
                     i+=4;
                     j+=4;
+                    day += 4;
                     rowNum++;
+                }
+                if (cells[i+1]==null){
+                        bot.reply(message, '<@'+message.user+'>, you have not yet timed in. Please time in first');
                 }
             });
         });
@@ -287,12 +292,13 @@ controller.hears(['^help$'], 'direct_message,direct_mention,mention', function(b
         'renew \n\t\t renews user time in\n' +
         'in/out/renew timestamp \n\t\t times in/out or renews time in user at specified timestamp\n' +
         'user in/out/renew username\n\t\t times in/out or renews time in for specified user at current time\n'+ 
-        'user in/out/renew timestamp/username username/timestamp \n\t\t times in/out or renews time in of specified user at timestamp' 
+        'user in/out/renew timestamp/username username/timestamp \n\t\t times in/out or renews time in of specified user at timestamp \n' +
+        'new sheet \n\t\t creates a new worksheet and sets that worksheet as the target for timing in and out'
     );
  })
 controller.hears(['^in$'], 'direct_message,direct_mention,mention', function(bot, message) {
     var timestamp =moment().tz(timezone).format('HH:mm:ss');
-    var renewMsg = 'Please type <renew> to time in again';
+    var renewMsg = 'You have already timed in. Please type <renew> override your time in to the current time.';
     timeIn(bot, message, renewMsg, timestamp);
  })
 controller.hears(['^renew$'], 'direct_message,direct_mention,mention', function(bot,message){
@@ -372,7 +378,7 @@ controller.hears(['^new sheet$'], 'direct_message,direct_mention,mention', funct
         if (err)
             console.log(err);
         doc.addWorksheet({
-            'rowCount': ''+maxRows, 
+            'rowCount': ''+ maxRows, 
             'colCount':'6', 
             'headers':['Username', 'Name', 'Date', 'Time In', 'Time Out', 'Hours']
         }, 
@@ -437,7 +443,7 @@ controller.hears(['^user (.*) (.*) (.*)$'], 'direct_message,direct_mention,menti
                                                 //checks if the date is the same date as today
                                                 if(cells[dateSelectionIndex].value == today){
                                                     skipTimeIn = true;
-                                                    bot.reply(message, 'Please type <user renew username/timestamp timestamp/username> to time in again');
+                                                    bot.reply(message, 'Please type [user renew username/timestamp timestamp/username>] to override the previous time in for the user you selected.');
                                                     break;
                                                 }
                                             }
@@ -545,7 +551,7 @@ controller.hears(['^user (.*) (.*) (.*)$'], 'direct_message,direct_mention,menti
                                                     setCellValue(rowEntryIndex, 4, 4, 0, timeInput);
                                                     setCellValue(rowEntryIndex, 5, 5, 0, "");
                                                     setCellValue(rowEntryIndex, 6, 6, 0, "");
-                                                    bot.reply(message, '<@'+message.user+'>, you have renewed '+'<@'+userId+'>\'s time in.');
+                                                    bot.reply(message, '<@'+message.user+'>, you have renewed '+'<@'+userId+'>\'s time in to ' + timeInput);
                                                     break;
                                                 }
                                             }
@@ -558,7 +564,7 @@ controller.hears(['^user (.*) (.*) (.*)$'], 'direct_message,direct_mention,menti
                                     }
                                     //if user hasn't timed in yet
                                     if(!skipTimeOutErrorMessage) {
-                                        bot.reply(message, '<@'+userId+'> has not yet timed in');
+                                        bot.reply(message, '<@'+userId+'> has not yet timed in. I cannot renew his/her time in yet.');
                                     }
                                 });
                             });
@@ -620,7 +626,7 @@ controller.hears(['^user (.*) (.*)$'], 'direct_message,direct_mention,mention', 
                                         //checks if the date is the same date as today
                                         if(cells[dateSelectionIndex].value == today){
                                             skipTimeIn = true;
-                                            bot.reply(message, 'Please type <user renew username/timestamp timestamp/username> to time in again');
+                                            bot.reply(message, 'Please type [user renew username/timestamp timestamp/username] to override the selected user\'s time in.');
                                             break;
                                         }
                                     }
@@ -672,6 +678,7 @@ controller.hears(['^user (.*) (.*)$'], 'direct_message,direct_mention,mention', 
                                     if(cells[dateSelectionIndex]!=null){
                                         //checks if the date is the same date as today
                                         if(cells[dateSelectionIndex].value == today){
+                                            //checks if there is a time in. if there is a time in, add time out and compute for hours rendered
                                             if(cells[timeInSelectionIndex]!=null){
                                                 now = moment(timeInput,"HH:mm:ss");
                                                 then = moment(cells[timeInSelectionIndex].value, "HH:mm:ss");
@@ -728,7 +735,7 @@ controller.hears(['^user (.*) (.*)$'], 'direct_message,direct_mention,mention', 
                                             setCellValue(rowEntryIndex, 4, 4, 0, timeInput);
                                             setCellValue(rowEntryIndex, 5, 5, 0, "");
                                             setCellValue(rowEntryIndex, 6, 6, 0, "");
-                                            bot.reply(message, '<@'+message.user+'>, you have renewed '+'<@'+userId+'>\'s time in.');
+                                            bot.reply(message, '<@'+message.user+'>, you have renewed '+'<@'+userId+'>\'s time in to '+timeInput);
                                             break;
                                         }
                                     }
@@ -741,7 +748,7 @@ controller.hears(['^user (.*) (.*)$'], 'direct_message,direct_mention,mention', 
                             }
                             //if user hasn't timed in yet
                             if(!skipTimeOutErrorMessage) {
-                                bot.reply(message, '<@'+userId+'> has not yet timed in');
+                                bot.reply(message, '<@'+userId+'> has not yet timed in. I cannot renew his/her time in yet.');
                             }
                         });
                     });
