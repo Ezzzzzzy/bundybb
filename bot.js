@@ -16,457 +16,214 @@ var fs = require('fs');
 var os = require('os');
 var timezone = "Asia/Manila";
 var sheetsLink = "https://docs.google.com/spreadsheets/d/1hmDypfJm73C6996CQngV1N5s-KPApycENq7Xzg33g0c/edit?usp=sharing";
-var controller = Botkit.slackbot({
- debug: false
-});
-var maxRows = 200;
-var bot = controller.spawn({
-  token: process.env.SLACK_TOKEN
-});
 var app = express();
-// start Slack RTM
-bot.startRTM(function(err,bot,payload) {
-  // handle errors...
-});
-//prepare the webhook
-controller.setupWebserver(process.env.PORT || 3001, function(err, webserver) {
-    controller.createWebhookEndpoints(webserver, bot, function() {
-        // handle errors...
-    });
- });
-
 var GoogleSpreadsheet = require('google-spreadsheet');
 var creds = require('./client_secret.json');
 var moment = require('moment-timezone');
-moment().format();
 var spreadsheetId = '1hmDypfJm73C6996CQngV1N5s-KPApycENq7Xzg33g0c';
 var doc = new GoogleSpreadsheet(spreadsheetId);
-//app.listen(process.env.PORT || 3001, function(){});
-//setup size of doc
 var worksheetNum = 1;
 
-//***sets the current worksheet in the workbook
-doc.useServiceAccountAuth(creds, function (err) {
-    //if (err) console.log(err);
-    doc.getInfo(function(err, response) {
-            response.worksheets[0].resize({ 
-                'rowCount':''+maxRows, 
-                'colCount': 6
-            },function(err){});
-            worksheetNum = response.worksheets.length;
-            console.log("Bundy initialized. Working with sheet number " + worksheetNum);
-//===
-//bot commands
-//===
-/*************************
- *****misc--functions*****
- *************************/
-function setCellValue(row_index, col_index, col_range, val_index, val){
-    doc.useServiceAccountAuth(creds, function (err) {
-        doc.getCells(worksheetNum, {
-            'min-row': row_index, 
-            'max-row': row_index, 
-            'min-col': col_index,
-            'max-col': col_range,
-            'return-empty': true
-        }, 
-        function (err, cells) {
-            cells[val_index].setValue(val, function(err){
-                if(err){
-                    console.log(err);
-                }
-            });
-        });
-    });
- }
-function dateDMY(){
-    var today = new Date();
-    var dd = today.getDate();
-    var mm = today.getMonth() + 1; //January is 0!
-    var yyyy = today.getFullYear();
-    if(dd<10){
-        dd='0'+dd;
-    } 
-    if(mm<10){
-        mm='0'+mm;
-    } 
-    var today = dd+'/'+mm+'/'+yyyy;
-    return today;
- }
-function msToTime(duration) {
-    var milliseconds = parseInt((duration%1000)/100)
-        , seconds = parseInt((duration/1000)%60)
-        , minutes = parseInt((duration/(1000*60))%60)
-        , hours = parseInt((duration/(1000*60*60))%24);
+moment().format();
+var controller = Botkit.slackbot({
+ debug: false
+});
+var bot = controller.spawn({
+  token: process.env.SLACK_TOKEN
+});
+bot.startRTM(function(err,bot,payload) {
 
-    hours = (hours < 10) ? "0" + hours : hours;
-    minutes = (minutes < 10) ? "0" + minutes : minutes;
-    seconds = (seconds < 10) ? "0" + seconds : seconds;
-
-    return hours + ":" + minutes + ":" + seconds + "." + milliseconds;
- }
-function parseMonth(date){
-    return parseInt(date.substr(4,6));
- }
-function timestampToSeconds(timestamp){
-    var tstampValues = timestamp.split(":");
-    if(tstampValues[0]==''){
-        return 0;
-    }
-    var sum = 0;
-
-    tstampValues[0] = parseInt(tstampValues[0]*3600);
-    tstampValues[1] = parseInt(tstampValues[1]*60);
-    tstampValues[2] = parseInt(tstampValues[2]);
-
-    for(var i = 0; i < 3; i++){
-        sum += tstampValues[i];
-    }
-    return sum;
- }
+});
+controller.setupWebserver(process.env.PORT || 3001, function(err, webserver) {
+    controller.createWebhookEndpoints(webserver, bot, function() {});
+ });
 
 /*************************
  *****bundy-functions*****
  *************************/
-function timeIn(bot, message, renewMessage, tstamp){
-    var skipTimeIn = false;
-
-    //indexes that increment by three to point to the next name/date
-    var nameSelectionIndex = 0;
-    var dateSelectionIndex = 2;
-
-    var rowEntryIndex = 2;
-    var today = dateDMY();
-
-    bot.api.users.info({user:message.user},function(err,response) {
-        doc.useServiceAccountAuth(creds, function (err) {
-            doc.getCells(worksheetNum, {
-                'min-row': 2, 
-                'max-row': maxRows, 
-                'min-col': 1,
-                'max-col': 3,
-                'return-empty': false
-            }, 
-            function (err, cells) {
-                //iterates through all username values
-                while(cells[nameSelectionIndex]!=null && (nameSelectionIndex/3) < maxRows){
-                    //checks if name is equal
-                    if(cells[nameSelectionIndex].value == response.user.name){
-                        //checks if there is a date
-                        if(cells[dateSelectionIndex]!=null){
-                            //checks if the date is the same date as today
-                            if(cells[dateSelectionIndex].value == today){
-                                skipTimeIn = true;
-                                bot.reply(message, renewMessage);
-                                break;
-                            }
-                        }
-                    }
-                    //next name
-                    nameSelectionIndex += 3;
-                    //next date
-                    dateSelectionIndex += 3;
-                }
-                //if user hasn't timed in yet
-                rowEntryIndex += (nameSelectionIndex/3);
-                if(!skipTimeIn) {
-                    if(rowEntryIndex > maxRows){
-                        bot.reply(message, 'Storage full. Please type @bundy new sheet');
-                    }
-                    else{
-                        setCellValue(rowEntryIndex, 1, 1, 0, response.user.name);
-                        setCellValue(rowEntryIndex, 2, 2, 0, response.user.profile.real_name);
-                        setCellValue(rowEntryIndex, 3, 3, 0, today);
-                        setCellValue(rowEntryIndex, 4, 4, 0, tstamp);
-                        bot.reply(message, '<@'+message.user+'>, you have timed in.');
-                    }
-                }
-            });
-        });
-    });
- }
-function renew(bot, message, tstamp, date){
-    var rowEntryIndex = 2;
-
-    //indexes that increment by three to point to the next name/date
-    var nameSelectionIndex = 0;
-    var dateSelectionIndex = 2;
-
-    var today = dateDMY();
-    var hasTimedInAgain = false;
-
-    bot.api.users.info({user:message.user},function(err,response) {
-        doc.useServiceAccountAuth(creds, function (err) {
-            doc.getCells(worksheetNum, {
-                'min-row': 2, 
-                'max-row': maxRows, 
-                'min-col': 1,
-                'max-col': 3,
-                'return-empty': false
-            }, 
-            function (err, cells) {
-                //iterates through all username values
-                while(cells[nameSelectionIndex]!=null){
-                    //checks if name is equal
-                    if(cells[nameSelectionIndex].value == response.user.name){
-                        //checks if there is a date
-                        if(cells[dateSelectionIndex]!=null){
-                            //checks if the date is the same date as today
-                            if(cells[dateSelectionIndex].value == today){
-                                hasTimedInAgain = true;
-                                setCellValue(rowEntryIndex, 4, 4, 0, tstamp);
-                                setCellValue(rowEntryIndex, 5, 5, 0, "");
-                                setCellValue(rowEntryIndex, 6, 6, 0, "");
-                                bot.reply(message, '<@'+message.user+'>, I have changed your time in to ' + tstamp);
-                                break;
-                            }
-                        }
-                    }
-                    //next name and date
-                    nameSelectionIndex += 3;
-                    dateSelectionIndex += 3;
-                    rowEntryIndex++;
-                }
-                //if user hasn't timed in yet
-                if(!hasTimedInAgain) {
-                    bot.reply(message, '<@'+message.user+'>, you have not timed in yet. I cannot renew your time in.');                    
-                }
-            });
-        });
-    });
- }
-function timeOut(bot, message, tstamp){
+function timeIn(bot, message, tstamp, worksheetNum){
     var today = moment().format('DD/MM/YYYY');
-    var now, then, hours;
     bot.api.users.info({user:message.user},function(err,response) {
         doc.useServiceAccountAuth(creds, function (err) {
-            doc.getCells(worksheetNum, {
-                'min-row': 2, 
-                'max-row': maxRows, 
-                'min-col': 1,
-                'max-col': 4,
-                'return-empty': true
-            }, 
-            function (err, cells) {
-                //i and j are pertain to columns
-                var i = 0; 
-                var day = 2;
-                var j = 3;
-                var rowNum = 2;
-                while(cells[i]!=null){
-                    if(cells[i].value==response.user.name){
-                        if(cells[j].value!=null && cells[day]!=null){
-                        	if(cells[day].value == today) {
-	                            now = moment(tstamp,"HH:mm:ss");
-	                            then = moment(cells[j].value, "HH:mm:ss");
-	                            hours = moment.utc(moment(now,"HH:mm:ss").diff(moment(then, "HH:mm:ss"))).format("HH:mm:ss");
-	                            setCellValue(rowNum, 5, 5, 0, tstamp);
-	                            setCellValue(rowNum, 6, 6, 0, hours);
-	                            bot.reply(message, '<@'+message.user+'>, you have timed out.');
-	                            break;
-	                        }
-                        }
-                    }
-                    
-                    i+=4;
-                    j+=4;
-                    day += 4;
-                    rowNum++;
+            doc.addRow(worksheetNum, {
+                Username: response.user.name,
+                Name: response.user.profile.real_name,
+                Date: today,
+                Time_In: tstamp
+            }, function(err, row){
+                if (err) {
+                    console.log(err);
                 }
-                if (cells[i+1]==null){
-                        bot.reply(message, '<@'+message.user+'>, you have not yet timed in. Please time in first');
-                }
+                bot.reply(message, response.user.profile.real_name + ', you have timed in.');
             });
         });
     });
  }
-controller.hears(['^help$'], 'direct_message,direct_mention,mention', function(bot,message) {
-    bot.reply(message, 'Command Format: \n' +
-        '@bundy <command> \n' +
-        'Timestamp Format: HH:MM:SS 24-hr format \n' +
-        'Timezone: Asia/Manila \n' +
-        'Limitations: Currently limited to 200 rows. After exceeding, please delete entries in the excel sheet\n\n'+
-        'Commands:\n'+
-        'in \n\t\t times user in\n' +
-        'out \n\t\t times user out\n' +
-        'renew \n\t\t renews user time in\n' +
-        'in/out/renew timestamp \n\t\t times in/out or renews time in user at specified timestamp\n' +
-        'user in/out/renew username\n\t\t times in/out or renews time in for specified user at current time\n'+ 
-        'user in/out/renew timestamp/username username/timestamp \n\t\t times in/out or renews time in of specified user at timestamp \n' +
-        'new sheet \n\t\t creates a new worksheet and sets that worksheet as the target for timing in and out'
-    );
- })
-controller.hears(['^in$'], 'direct_message,direct_mention,mention', function(bot, message) {
-    var timestamp =moment().tz(timezone).format('HH:mm:ss');
-    var renewMsg = 'You have already timed in. Please type <renew> override your time in to the current time.';
-    timeIn(bot, message, renewMsg, timestamp);
- })
-controller.hears(['^renew$'], 'direct_message,direct_mention,mention', function(bot,message){
-    var timestamp = moment().tz(timezone).format('HH:mm:ss');
-    renew(bot, message, timestamp);
- })
-controller.hears(['^out$'], 'direct_message,direct_mention,mention', function(bot,message) {
-    var timestamp = moment().tz(timezone).format('HH:mm:ss');
-    console.log(timestamp);
-    timeOut(bot, message, timestamp);  
- })
-controller.hears(['^hours$'], 'direct_message,direct_mention,mention', function(bot,message) {
-    var timeInput;
-
-    var skipTimeIn = false;
-    var skipTimeOutErrorMessage = false;
-
-    //indexes that increment by three to point to the next name/date
-    var nameSelectionIndex = 0;
-    var timeOutSelectionIndex = 4;
-    var hoursSelectionIndex = 5;
-    var dateSelectionIndex = 2;
-
-
-    var rowEntryIndex = 2;
-    var today = dateDMY();
-    var month = parseMonth(today);
-    var totalSeconds = 0;
-
-    bot.api.users.info({user:message.user}, function(err,response) {
+function timeOut(bot, message, tstamp, worksheetNum){
+    var today = moment().format('DD/MM/YYYY');
+    bot.api.users.info({user:message.user},function(err,response) {
         doc.useServiceAccountAuth(creds, function (err) {
-            doc.getCells(worksheetNum, {
-                'min-row': 2, 
-                'max-row': maxRows, 
-                'min-col': 1,
-                'max-col': 6,
-                'return-empty': true
-            }, 
-            function (err, cells) {
-                //iterates through all username values
-                while(cells[nameSelectionIndex]!=null){
-                    //checks if name is equal
-                    if(cells[nameSelectionIndex].value == response.user.name){
-                        //checks if there is a date
-                        if(cells[dateSelectionIndex]!=null){
-                            //checks if the month is the month today
-                            if(parseMonth(cells[dateSelectionIndex].value) == month){
-                                if(cells[timeOutSelectionIndex]!=null) {
-                                    totalSeconds += (timestampToSeconds(cells[hoursSelectionIndex].value));
+            doc.addRow(worksheetNum, {
+                Username: response.user.name,
+                Name: response.user.profile.real_name,
+                Date: today,
+                Time_Out: tstamp
+            }, function(err, row){
+                if (err) {
+                    console.log(err);
+                }
+                bot.reply(message, response.user.profile.real_name + ', you have timed out.');
+            });
+        });
+    });
+ }
+
+doc.useServiceAccountAuth(creds, function (err) {
+    doc.getInfo(function(err, response) {
+        worksheetNum = response.worksheets.length;
+        console.log("Bundy initialized. Working with sheet number " + worksheetNum);
+        //===
+        //bot commands
+        //===
+        controller.hears(['^help$'], 'direct_message,direct_mention,mention', function(bot,message) {
+            bot.reply(message, 'Command Format: \n' +
+                '@bundy <command> \n' +
+                'Timestamp Format: HH:MM:SS 24-hr format \n' +
+                'Timezone: Asia/Manila \n\n' +
+                'Commands:\n'+
+                'in \n\t\t times user in\n' +
+                'out \n\t\t times user out\n' +
+                'in/out timestamp \n\t\t times in/out  user at specified timestamp\n' +
+                'user in/out username\n\t\t times in/out or renews time in for specified user at current time\n'+ 
+                'user in/out timestamp/username username/timestamp \n\t\t times in/out of specified user at timestamp \n' +
+                'new sheet \n\t\t creates a new worksheet and sets that worksheet as the target for timing in and out'
+            );
+         })
+        controller.hears(['^in$'], 'direct_message,direct_mention,mention', function(bot, message) {
+            var timestamp =moment().tz(timezone).format('HH:mm:ss');
+            timeIn(bot, message, timestamp, worksheetNum);
+         })
+        controller.hears(['^out$'], 'direct_message,direct_mention,mention', function(bot,message) {
+            var timestamp = moment().tz(timezone).format('HH:mm:ss');
+            timeOut(bot, message, timestamp, worksheetNum);  
+         })
+        controller.hears(['^new sheet$'], 'direct_message,direct_mention,mention', function(bot,message) {
+            var worksheetTemp;
+            doc.useServiceAccountAuth(creds, function (err) {
+                if (err)
+                    console.log(err);
+                doc.addWorksheet({
+                    'colCount':'6', 
+                    'headers':['Username', 'Name', 'Date', 'Time In', 'Time Out', 'Hours']
+                }, 
+                function(err){
+                   doc.getInfo(function(err, response){
+                        worksheetNum = response.worksheets.length;
+                        bot.reply(message, 'You have created a new sheet.');
+                   })
+                });
+            });
+         });
+        controller.hears(['^user (.*) (.*) (.*)$'], 'direct_message,direct_mention,mention', function(bot,message) {
+            var command = message.match[1];
+            var field1 = message.match[2];
+            var field2 = message.match[3];
+            var timeInput, userId;
+
+            var today = moment().format('DD/MM/YYYY');
+            var isTimeInputOk = false;
+
+            if(field2!=null &&field1!=null) {
+                if(field1.substr(0,2)=='<@'){
+                    userId = field1.substr(2, field1.length-3);
+                    timeInput = field2;
+                    isTimeInputOk = moment(timeInput,'HH:mm:ss').isValid();
+                }
+                else if(field2.substr(0,2)=='<@'){
+                    userId = field2.substr(2, field2.length-3);
+                    timeInput = field1;
+                    isTimeInputOk = moment(timeInput,'HH:mm:ss').isValid();
+                }
+                if(isTimeInputOk){
+                    if(command == 'in'){
+                        bot.api.users.list({},function(err, response) {
+                            for(var i = 0; i < response.members.length; i++){
+                                if(response.members[i].id==userId){
+                                    doc.useServiceAccountAuth(creds, function (err) {
+                                        doc.addRow(worksheetNum, {
+                                            Username: response.members[i].name,
+                                            Name: response.members[i].real_name,
+                                            Date: today,
+                                            Time_In: timeInput
+                                        }, function(err, row){
+                                            if (err) {
+                                                console.log(err);
+                                            }
+                                            bot.reply(message, response.user.profile.real_name + ', you have timed in.');
+                                        });
+                                    });
+                                    break;
                                 }
                             }
-                        }
+                        });
                     }
-                    //next name
-                    nameSelectionIndex += 6;
-                    //next date
-                    dateSelectionIndex += 6;
-                    //next timeout
-                    timeOutSelectionIndex +=6;
-                    //next hours
-                    hoursSelectionIndex +=6;
-                }
-                if(totalSeconds==0) {
-                    bot.reply(message, "You haven\'t timed out yet during this month")
+                    else if(command == 'out'){
+                        bot.api.users.list({},function(err, response) {
+                            for(var i = 0; i < response.members.length; i++){
+                                if(response.members[i].id==userId){
+                                    doc.useServiceAccountAuth(creds, function (err) {
+                                        doc.addRow(worksheetNum, {
+                                            Username: response.members[i].name,
+                                            Name: response.members[i].real_name,
+                                            Date: today,
+                                            Time_Out: timeInput
+                                        }, function(err, row){
+                                            if (err) {
+                                                console.log(err);
+                                            }
+                                            bot.reply(message, response.user.profile.real_name + ', you have timed out.');
+                                        });
+                                    });
+                                    break;
+                                }
+                            }
+                        });
+                    }
+                    else{
+                        bot.reply(message, "I don\'t understand the command. Please type @bundy help for a list of all the commands");
+                    }
                 }
                 else {
-                    bot.reply(message, "Total Hours for this month:\n" + 
-                        parseInt(totalSeconds/3600) + " hours");
+                    bot.reply(message, "I don\'t understand the command. Please type @bundy help for a list of all the commands");
                 }
-            });
-        });
-    });
- })
-controller.hears(['^new sheet$'], 'direct_message,direct_mention,mention', function(bot,message) {
-    var worksheetTemp;
-    doc.useServiceAccountAuth(creds, function (err) {
-        if (err)
-            console.log(err);
-        doc.addWorksheet({
-            'rowCount': ''+ maxRows, 
-            'colCount':'6', 
-            'headers':['Username', 'Name', 'Date', 'Time In', 'Time Out', 'Hours']
-        }, 
-        function(err){
-           doc.getInfo(function(err, response){
-                worksheetNum = response.worksheets.length;
-                bot.reply(message, 'You have created a new sheet.');
-           })
-        });
-    });
- });
-controller.hears(['^user (.*) (.*) (.*)$'], 'direct_message,direct_mention,mention', function(bot,message) {
-    var command = message.match[1];
-    var field1 = message.match[2];
-    var field2 = message.match[3];
-    var timeInput, userId;
+            }
+        })
+        controller.hears(['^user (.*) (.*)$'], 'direct_message,direct_mention,mention', function(bot,message) {
+            var command = message.match[1];
+            var field1 = message.match[2];
+            var timeInput = moment().tz(timezone).format('HH:mm:ss'); 
+            var userId;
 
-    var skipTimeIn = false;
-    var skipTimeOutErrorMessage = false;
-
-    //indexes that increment by three to point to the next name/date
-    var nameSelectionIndex = 0;
-    var dateSelectionIndex = 2;
-    var timeInSelectionIndex = 3;
-
-    var rowEntryIndex = 2;
-    var today = dateDMY();
-    var isTimeInputOk = false;
-
-    var now, then, hours;
-    if(field2!=null &&field1!=null) {
-        if(field1.substr(0,2)=='<@'){
-            userId = field1.substr(2, field1.length-3);
-            timeInput = field2;
-            isTimeInputOk = moment(timeInput,'HH:mm:ss').isValid();
-        }
-        else if(field2.substr(0,2)=='<@'){
-            userId = field2.substr(2, field2.length-3);
-            timeInput = field1;
-            isTimeInputOk = moment(timeInput,'HH:mm:ss').isValid();
-        }
-        if(isTimeInputOk){
+            var today = moment().format('DD/MM/YYYY');
+            if(field1.substr(0,2)=='<@'){
+                userId = field1.substr(2, field1.length-3);
+            }
+            
             if(command == 'in'){
                 bot.api.users.list({},function(err, response) {
                     for(var i = 0; i < response.members.length; i++){
                         if(response.members[i].id==userId){
                             doc.useServiceAccountAuth(creds, function (err) {
-                                doc.getCells(worksheetNum, {
-                                    'min-row': 2, 
-                                    'max-row': maxRows, 
-                                    'min-col': 1,
-                                    'max-col': 3,
-                                    'return-empty': false
-                                }, 
-                                function (err, cells) {
-                                    //iterates through all username values
-                                    while(cells[nameSelectionIndex]!=null && (nameSelectionIndex/3) < maxRows){
-                                        //checks if name is equal
-                                        if(cells[nameSelectionIndex].value == response.members[i].name){
-                                            //checks if there is a date
-                                            if(cells[dateSelectionIndex]!=null){
-                                                //checks if the date is the same date as today
-                                                if(cells[dateSelectionIndex].value == today){
-                                                    skipTimeIn = true;
-                                                    bot.reply(message, 'Please type [user renew username/timestamp timestamp/username>] to override the previous time in for the user you selected.');
-                                                    break;
-                                                }
-                                            }
-                                        }
-                                        //next name
-                                        nameSelectionIndex += 3;
-                                        //next date
-                                        dateSelectionIndex += 3;
+                                doc.addRow(worksheetNum, {
+                                    Username: response.members[i].name,
+                                    Name: response.members[i].real_name,
+                                    Date: today,
+                                    Time_In: timeInput
+                                }, function(err, row){
+                                    if (err) {
+                                        console.log(err);
                                     }
-                                    //if user hasn't timed in yet
-                                    rowEntryIndex += (nameSelectionIndex/3);
-                                    if(!skipTimeIn) {
-                                        if(rowEntryIndex > maxRows){
-                                            bot.reply(message, 'Storage full. Please type @bundy new sheet');
-                                        }
-                                        else{
-                                            setCellValue(rowEntryIndex, 1, 1, 0, response.members[i].name);
-                                            setCellValue(rowEntryIndex, 2, 2, 0, response.members[i].real_name);
-                                            setCellValue(rowEntryIndex, 3, 3, 0, today);
-                                            setCellValue(rowEntryIndex, 4, 4, 0, timeInput);
-                                            bot.reply(message, '<@'+message.user+'>, you have timed in '+'<@'+userId+'>');
-                                        }
-                                    }
+                                    bot.reply(message, response.user.profile.real_name + ', you have timed in.');
                                 });
                             });
                             break;
@@ -479,93 +236,16 @@ controller.hears(['^user (.*) (.*) (.*)$'], 'direct_message,direct_mention,menti
                     for(var i = 0; i < response.members.length; i++){
                         if(response.members[i].id==userId){
                             doc.useServiceAccountAuth(creds, function (err) {
-                                doc.getCells(worksheetNum, {
-                                    'min-row': 2, 
-                                    'max-row': maxRows, 
-                                    'min-col': 1,
-                                    'max-col': 4,
-                                    'return-empty': true
-                                }, 
-                                function (err, cells) {
-                                    //iterates through all username values
-                                    while(cells[nameSelectionIndex]!=null){
-                                        //checks if name is equal
-                                        if(cells[nameSelectionIndex].value == response.members[i].name){
-                                            //checks if there was a time in
-                                            if(cells[dateSelectionIndex]!=null){
-                                                //checks if the date is the same date as today
-                                                if(cells[dateSelectionIndex].value == today){
-                                                    if(cells[timeInSelectionIndex]!=null) {
-                                                        now = moment(timeInput,"HH:mm:ss");
-                                                        then = moment(cells[timeInSelectionIndex].value, "HH:mm:ss");
-                                                        hours = moment.utc(moment(now,"HH:mm:ss").diff(moment(then, "HH:mm:ss"))).format("HH:mm:ss");
-                                                        skipTimeOutErrorMessage = true;
-                                                        setCellValue(rowEntryIndex, 5, 5, 0, timeInput);
-                                                        setCellValue(rowEntryIndex, 6, 6, 0, hours);
-                                                        bot.reply(message, '<@'+message.user+'>, you have timed out '+'<@'+userId+'>');
-                                                        break;
-                                                    }
-                                                }
-                                            }
-                                        }
-                                        //next name
-                                        nameSelectionIndex += 4;
-                                        //next date
-                                        timeInSelectionIndex += 4;
-                                        dateSelectionIndex += 4;
-                                        rowEntryIndex ++;
+                                doc.addRow(worksheetNum, {
+                                    Username: response.members[i].name,
+                                    Name: response.members[i].real_name,
+                                    Date: today,
+                                    Time_Out: timeInput
+                                }, function(err, row){
+                                    if (err) {
+                                        console.log(err);
                                     }
-                                    //if user hasn't timed in yet
-                                    if(!skipTimeOutErrorMessage) {
-                                        bot.reply(message, '<@'+userId+'> has not yet timed in');
-                                    }
-                                });
-                            });
-                            break;
-                        }
-                    }
-                });
-            }
-            else if(command=='renew'){
-                bot.api.users.list({},function(err, response) {
-                    for(var i = 0; i < response.members.length; i++){
-                        if(response.members[i].id==userId){
-                            doc.useServiceAccountAuth(creds, function (err) {
-                                doc.getCells(worksheetNum, {
-                                    'min-row': 2, 
-                                    'max-row': maxRows, 
-                                    'min-col': 1,
-                                    'max-col': 3,
-                                    'return-empty': false
-                                }, 
-                                function (err, cells) {
-                                    //iterates through all username values
-                                    while(cells[nameSelectionIndex]!=null){
-                                        //checks if name is equal
-                                        if(cells[nameSelectionIndex].value == response.members[i].name){
-                                            //checks if there is a date
-                                            if(cells[dateSelectionIndex]!=null){
-                                                //checks if the date is the same date as today
-                                                if(cells[dateSelectionIndex].value == today){
-                                                    skipTimeOutErrorMessage = true;
-                                                    setCellValue(rowEntryIndex, 4, 4, 0, timeInput);
-                                                    setCellValue(rowEntryIndex, 5, 5, 0, "");
-                                                    setCellValue(rowEntryIndex, 6, 6, 0, "");
-                                                    bot.reply(message, '<@'+message.user+'>, you have renewed '+'<@'+userId+'>\'s time in to ' + timeInput);
-                                                    break;
-                                                }
-                                            }
-                                        }
-                                        //next name
-                                        nameSelectionIndex += 3;
-                                        //next date
-                                        dateSelectionIndex += 3;
-                                        rowEntryIndex ++;
-                                    }
-                                    //if user hasn't timed in yet
-                                    if(!skipTimeOutErrorMessage) {
-                                        bot.reply(message, '<@'+userId+'> has not yet timed in. I cannot renew his/her time in yet.');
-                                    }
+                                    bot.reply(message, response.user.profile.real_name + ', you have timed out.');
                                 });
                             });
                             break;
@@ -576,213 +256,27 @@ controller.hears(['^user (.*) (.*) (.*)$'], 'direct_message,direct_mention,menti
             else{
                 bot.reply(message, "I don\'t understand the command. Please type @bundy help for a list of all the commands");
             }
-        }
-        else {
-            bot.reply(message, "I don\'t understand the command. Please type @bundy help for a list of all the commands");
-        }
-    }
- })
-controller.hears(['^user (.*) (.*)$'], 'direct_message,direct_mention,mention', function(bot,message) {
-    var command = message.match[1];
-    var field1 = message.match[2];
-    var timeInput = moment().tz(timezone).format('HH:mm:ss'); 
-    var userId;
-
-    var skipTimeIn = false;
-    var skipTimeOutErrorMessage = false;
-
-    //indexes that increment by three to point to the next name/date
-    var nameSelectionIndex = 0;
-    var dateSelectionIndex = 2;
-    var timeInSelectionIndex = 3;
-
-    var rowEntryIndex = 2;
-    var today = dateDMY();
-
-    var now, then, hours;
-    if(field1.substr(0,2)=='<@'){
-        userId = field1.substr(2, field1.length-3);
-    }
-    
-    if(command == 'in'){
-        bot.api.users.list({},function(err, response) {
-            for(var i = 0; i < response.members.length; i++){
-                if(response.members[i].id==userId){
-                    doc.useServiceAccountAuth(creds, function (err) {
-                        doc.getCells(worksheetNum, {
-                            'min-row': 2, 
-                            'max-row': maxRows, 
-                            'min-col': 1,
-                            'max-col': 3,
-                            'return-empty': false
-                        }, 
-                        function (err, cells) {
-                            //iterates through all username values
-                            while(cells[nameSelectionIndex]!=null && (nameSelectionIndex/3) < maxRows){
-                                //checks if name is equal
-                                if(cells[nameSelectionIndex].value == response.members[i].name){
-                                    //checks if there is a date
-                                    if(cells[dateSelectionIndex]!=null){
-                                        //checks if the date is the same date as today
-                                        if(cells[dateSelectionIndex].value == today){
-                                            skipTimeIn = true;
-                                            bot.reply(message, 'Please type [user renew username/timestamp timestamp/username] to override the selected user\'s time in.');
-                                            break;
-                                        }
-                                    }
-                                }
-                                //next name
-                                nameSelectionIndex += 3;
-                                //next date
-                                dateSelectionIndex += 3;
-                            }
-                            //if user hasn't timed in yet
-                            rowEntryIndex += (nameSelectionIndex/3);
-                            if(!skipTimeIn) {
-                                if(rowEntryIndex > maxRows){
-                                    bot.reply(message, 'Storage full. Please type @bundy new sheet');
-                                }
-                                else{
-                                    setCellValue(rowEntryIndex, 1, 1, 0, response.members[i].name);
-                                    setCellValue(rowEntryIndex, 2, 2, 0, response.members[i].real_name);
-                                    setCellValue(rowEntryIndex, 3, 3, 0, today);
-                                    setCellValue(rowEntryIndex, 4, 4, 0, timeInput);
-                                    bot.reply(message, '<@'+message.user+'>, you have timed in '+'<@'+userId+'>');
-                                }
-                            }
-                        });
-                    });
-                    break;
+        });
+        controller.hears(['(.*) (.*)'], 'direct_message,direct_mention,mention', function(bot,message) {
+            var command = message.match[1];
+            var timestamp = message.match[2];
+            if(moment(timestamp, 'HH:mm:ss')) {
+                if(command=='in'){
+                    timeIn(bot, message, timestamp, worksheetNum);
+                }
+                else if(command=='renew'){
+                    renew(bot, message, timestamp, worksheetNum);
+                }
+                else if(command=='out'){
+                    timeOut(bot, message, timestamp, worksheetNum);
+                }
+                else{
+                    bot.reply(message, "I don\'t understand the command. Please type @bundy help for a list of all the commands");
                 }
             }
-        });
-    }
-    else if(command == 'out'){
-        bot.api.users.list({},function(err, response) {
-            for(var i = 0; i < response.members.length; i++){
-                if(response.members[i].id==userId){
-                    doc.useServiceAccountAuth(creds, function (err) {
-                        doc.getCells(worksheetNum, {
-                            'min-row': 2, 
-                            'max-row': maxRows, 
-                            'min-col': 1,
-                            'max-col': 4,
-                            'return-empty': true
-                        }, 
-                        function (err, cells) {
-                            //iterates through all username values
-                            while(cells[nameSelectionIndex]!=null){
-                                //checks if name is equal
-                                if(cells[nameSelectionIndex].value == response.members[i].name){
-                                    //checks if there is a date
-                                    if(cells[dateSelectionIndex]!=null){
-                                        //checks if the date is the same date as today
-                                        if(cells[dateSelectionIndex].value == today){
-                                            //checks if there is a time in. if there is a time in, add time out and compute for hours rendered
-                                            if(cells[timeInSelectionIndex]!=null){
-                                                now = moment(timeInput,"HH:mm:ss");
-                                                then = moment(cells[timeInSelectionIndex].value, "HH:mm:ss");
-                                                hours = moment.utc(moment(now,"HH:mm:ss").diff(moment(then, "HH:mm:ss"))).format("HH:mm:ss");
-                                                skipTimeOutErrorMessage = true;
-                                                setCellValue(rowEntryIndex, 5, 5, 0, timeInput);
-                                                setCellValue(rowEntryIndex, 6, 6, 0, hours);
-                                                bot.reply(message, '<@'+message.user+'>, you have timed out '+'<@'+userId+'>');
-                                                break;
-                                            }
-                                        }
-                                    }
-                                }
-                                //next name
-                                nameSelectionIndex += 4;
-                                //next date
-                                dateSelectionIndex += 4;
-                                timeInSelectionIndex +=4;
-                                rowEntryIndex ++;
-                            }
-                            //if user hasn't timed in yet
-                            if(!skipTimeOutErrorMessage) {
-                                bot.reply(message, '<@'+userId+'> has not yet timed in');
-                            }
-                        });
-                    });
-                    break;
-                }
+            else{
+                bot.reply(message, "Please follow the time format (HH:MM:SS) 24-hours.");
             }
         });
-    }
-    else if(command=='renew'){
-        bot.api.users.list({},function(err, response) {
-            for(var i = 0; i < response.members.length; i++){
-                if(response.members[i].id==userId){
-                    doc.useServiceAccountAuth(creds, function (err) {
-                        doc.getCells(worksheetNum, {
-                            'min-row': 2, 
-                            'max-row': maxRows, 
-                            'min-col': 1,
-                            'max-col': 3,
-                            'return-empty': false
-                        }, 
-                        function (err, cells) {
-                            //iterates through all username values
-                            while(cells[nameSelectionIndex]!=null){
-                                //checks if name is equal
-                                if(cells[nameSelectionIndex].value == response.members[i].name){
-                                    //checks if there is a date
-                                    if(cells[dateSelectionIndex]!=null){
-                                        //checks if the date is the same date as today
-                                        if(cells[dateSelectionIndex].value == today){
-                                            skipTimeOutErrorMessage = true;
-                                            setCellValue(rowEntryIndex, 4, 4, 0, timeInput);
-                                            setCellValue(rowEntryIndex, 5, 5, 0, "");
-                                            setCellValue(rowEntryIndex, 6, 6, 0, "");
-                                            bot.reply(message, '<@'+message.user+'>, you have renewed '+'<@'+userId+'>\'s time in to '+timeInput);
-                                            break;
-                                        }
-                                    }
-                                }
-                                //next name
-                                nameSelectionIndex += 3;
-                                //next date
-                                dateSelectionIndex += 3;
-                                rowEntryIndex ++;
-                            }
-                            //if user hasn't timed in yet
-                            if(!skipTimeOutErrorMessage) {
-                                bot.reply(message, '<@'+userId+'> has not yet timed in. I cannot renew his/her time in yet.');
-                            }
-                        });
-                    });
-                    break;
-                }
-            }
-        });
-    }
-    else{
-        bot.reply(message, "I don\'t understand the command. Please type @bundy help for a list of all the commands");
-    }
- })
-controller.hears(['(.*) (.*)'], 'direct_message,direct_mention,mention', function(bot,message) {
-    var command = message.match[1];
-    var timestamp = message.match[2];
-    var renewMsg = 'Please type <renew> <timestamp> to time in again at a particular time since you have already timed in';
-    if(moment(timestamp, 'HH:mm:ss')) {
-        if(command=='in'){
-            timeIn(bot, message, renewMsg, timestamp);
-        }
-        else if(command=='renew'){
-            renew(bot, message, timestamp);
-        }
-        else if(command=='out'){
-            timeOut(bot, message, timestamp);
-        }
-        else{
-            bot.reply(message, "I don\'t understand the command. Please type @bundy help for a list of all the commands");
-        }
-    }
-    else{
-        bot.reply(message, "Please follow the time format (HH:MM:SS) 24-hours.");
-    }
- })
-//***end of api call for setting worksheet number in workbook
     });
 });
