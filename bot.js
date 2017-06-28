@@ -48,7 +48,7 @@ function timeIn(bot, message, tstamp, worksheetNum){
             doc.addRow(worksheetNum, {
                 Username: response.user.name,
                 Name: response.user.profile.real_name,
-                Date: today,
+                Date_In: today,
                 Time_In: tstamp
             }, function(err, row){
                 if (err) {
@@ -66,7 +66,7 @@ function timeOut(bot, message, tstamp, worksheetNum){
             doc.addRow(worksheetNum, {
                 Username: response.user.name,
                 Name: response.user.profile.real_name,
-                Date: today,
+                Date_Out: today,
                 Time_Out: tstamp
             }, function(err, row){
                 if (err) {
@@ -114,7 +114,7 @@ doc.useServiceAccountAuth(creds, function (err) {
                     console.log(err);
                 doc.addWorksheet({
                     'colCount':'6', 
-                    'headers':['Username', 'Name', 'Date', 'Time In', 'Time Out', 'Hours']
+                    'headers':['Username', 'Name', 'Date_In', 'Time_In', 'Date_Out' ,'Time_Out']
                 }, 
                 function(err){
                    doc.getInfo(function(err, response){
@@ -132,6 +132,8 @@ doc.useServiceAccountAuth(creds, function (err) {
 
             var today = moment().format('DD/MM/YYYY');
             var isTimeInputOk = false;
+
+            var userFound = false;
 
             if(field2!=null &&field1!=null) {
                 if(field1.substr(0,2)=='<@'){
@@ -153,17 +155,21 @@ doc.useServiceAccountAuth(creds, function (err) {
                                         doc.addRow(worksheetNum, {
                                             Username: response.members[i].name,
                                             Name: response.members[i].real_name,
-                                            Date: today,
+                                            Date_In: today,
                                             Time_In: timeInput
                                         }, function(err, row){
                                             if (err) {
                                                 console.log(err);
                                             }
-                                            bot.reply(message, response.user.profile.real_name + ', you have timed in.');
+                                            bot.reply(message, response.members[i].real_name + ', you have timed in.');
+                                            userFound = true;
                                         });
                                     });
                                     break;
                                 }
+                            }
+                            if(!userFound){
+                                bot.reply(message, 'Cannot locate user: ' + userId);
                             }
                         });
                     }
@@ -175,17 +181,21 @@ doc.useServiceAccountAuth(creds, function (err) {
                                         doc.addRow(worksheetNum, {
                                             Username: response.members[i].name,
                                             Name: response.members[i].real_name,
-                                            Date: today,
+                                            Date_Out: today,
                                             Time_Out: timeInput
                                         }, function(err, row){
                                             if (err) {
                                                 console.log(err);
                                             }
-                                            bot.reply(message, response.user.profile.real_name + ', you have timed out.');
+                                            bot.reply(message, response.members[i].real_name + ', you have timed out.');
+                                            userFound = true;
                                         });
                                     });
                                     break;
                                 }
+                            }
+                            if(!userFound){
+                                bot.reply(message, 'Cannot locate user: ' + userId);
                             }
                         });
                     }
@@ -199,12 +209,12 @@ doc.useServiceAccountAuth(creds, function (err) {
             }
         })
         controller.hears(['^user (.*) (.*)$'], 'direct_message,direct_mention,mention', function(bot,message) {
+            var userId;
             var command = message.match[1];
             var field1 = message.match[2];
             var timeInput = moment().tz(timezone).format('HH:mm:ss'); 
-            var userId;
-
             var today = moment().format('DD/MM/YYYY');
+            var userFound = false;
             if(field1.substr(0,2)=='<@'){
                 userId = field1.substr(2, field1.length-3);
             }
@@ -217,17 +227,21 @@ doc.useServiceAccountAuth(creds, function (err) {
                                 doc.addRow(worksheetNum, {
                                     Username: response.members[i].name,
                                     Name: response.members[i].real_name,
-                                    Date: today,
+                                    Date_In: today,
                                     Time_In: timeInput
                                 }, function(err, row){
                                     if (err) {
                                         console.log(err);
                                     }
-                                    bot.reply(message, response.user.profile.real_name + ', you have timed in.');
+                                    bot.reply(message, response.members[i].real_name + ', you have timed in.');
+                                    userFound = true;
                                 });
                             });
                             break;
                         }
+                    }
+                    if(!userFound){
+                        bot.reply(message, 'Cannot locate user: ' + userId);
                     }
                 });
             }
@@ -239,17 +253,21 @@ doc.useServiceAccountAuth(creds, function (err) {
                                 doc.addRow(worksheetNum, {
                                     Username: response.members[i].name,
                                     Name: response.members[i].real_name,
-                                    Date: today,
+                                    Date_Out: today,
                                     Time_Out: timeInput
                                 }, function(err, row){
                                     if (err) {
                                         console.log(err);
                                     }
-                                    bot.reply(message, response.user.profile.real_name + ', you have timed out.');
+                                    bot.reply(message, response.members[i].real_name + ', you have timed out.');
+                                    userFound = true;
                                 });
-                            });
+                            });    
                             break;
                         }
+                    }
+                    if(!userFound){
+                        bot.reply(message, 'Cannot locate user: ' + userId);
                     }
                 });
             }
