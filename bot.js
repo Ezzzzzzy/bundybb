@@ -14,7 +14,6 @@ var Botkit = require('botkit');
 var express = require('express');
 var fs = require('fs');
 var os = require('os');
-var timezone = "Asia/Manila";
 var sheetsLink = "https://docs.google.com/spreadsheets/d/1hmDypfJm73C6996CQngV1N5s-KPApycENq7Xzg33g0c/edit?usp=sharing";
 var app = express();
 var GoogleSpreadsheet = require('google-spreadsheet');
@@ -100,11 +99,11 @@ doc.useServiceAccountAuth(creds, function (err) {
             );
          })
         controller.hears(['^in$'], 'direct_message,direct_mention,mention', function(bot, message) {
-            var timestamp =moment().tz(timezone).format('HH:mm:ss');
+            var timestamp =moment().format('HH:mm:ss');
             timeIn(bot, message, timestamp, worksheetNum);
          })
         controller.hears(['^out$'], 'direct_message,direct_mention,mention', function(bot,message) {
-            var timestamp = moment().tz(timezone).format('HH:mm:ss');
+            var timestamp = moment().format('HH:mm:ss');
             timeOut(bot, message, timestamp, worksheetNum);  
          })
         controller.hears(['^new sheet$'], 'direct_message,direct_mention,mention', function(bot,message) {
@@ -212,7 +211,7 @@ doc.useServiceAccountAuth(creds, function (err) {
             var userId;
             var command = message.match[1];
             var field1 = message.match[2];
-            var timeInput = moment().tz(timezone).format('HH:mm:ss'); 
+            var timeInput = moment().format('HH:mm:ss'); 
             var today = moment().format('DD/MM/YYYY');
             var userFound = false;
             if(field1.substr(0,2)=='<@'){
