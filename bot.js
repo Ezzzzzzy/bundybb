@@ -14,12 +14,12 @@ var Botkit = require('botkit');
 var express = require('express');
 var fs = require('fs');
 var os = require('os');
-var sheetsLink = "https://docs.google.com/spreadsheets/d/1hmDypfJm73C6996CQngV1N5s-KPApycENq7Xzg33g0c/edit?usp=sharing";
+var sheetsLink = "https://docs.google.com/spreadsheets/d/1k6bNyz5a3r-zuG2Jkw-Yeg_FZ06543qOfpPiq7SBpsk/edit#gid=0g";
 var app = express();
 var GoogleSpreadsheet = require('google-spreadsheet');
 var creds = require('./client_secret.json');
 var moment = require('moment-timezone');
-var spreadsheetId = '1hmDypfJm73C6996CQngV1N5s-KPApycENq7Xzg33g0c';
+var spreadsheetId = '1k6bNyz5a3r-zuG2Jkw-Yeg_FZ06543qOfpPiq7SBpsk';
 var doc = new GoogleSpreadsheet(spreadsheetId);
 var worksheetNum = 1;
 
