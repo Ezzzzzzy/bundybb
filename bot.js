@@ -77,6 +77,8 @@ function timeOut(bot, message, tstamp, worksheetNum){
     });
  }
 
+ 
+
 doc.useServiceAccountAuth(creds, function (err) {
     doc.getInfo(function(err, response) {
         worksheetNum = response.worksheets.length;
@@ -281,9 +283,9 @@ doc.useServiceAccountAuth(creds, function (err) {
                 if(command=='in'){
                     timeIn(bot, message, timestamp, worksheetNum);
                 }
-                else if(command=='renew'){
-                    renew(bot, message, timestamp, worksheetNum);
-                }
+                // else if(command=='renew'){
+                //     renew(bot, message, timestamp, worksheetNum);
+                // }
                 else if(command=='out'){
                     timeOut(bot, message, timestamp, worksheetNum);
                 }
