@@ -101,11 +101,11 @@ doc.useServiceAccountAuth(creds, function (err) {
             );
          })
         controller.hears(['^in$'], 'direct_message,direct_mention,mention', function(bot, message) {
-            var timestamp =moment().format('HH:mm:ss');
+            var timestamp =moment().tz('Asia/Manila').format('HH:mm:ss');
             timeIn(bot, message, timestamp, worksheetNum);
          })
         controller.hears(['^out$'], 'direct_message,direct_mention,mention', function(bot,message) {
-            var timestamp = moment().format('HH:mm:ss');
+            var timestamp = moment().tz('Asia/Manila').format('HH:mm:ss');
             timeOut(bot, message, timestamp, worksheetNum);  
          })
         controller.hears(['^new sheet$'], 'direct_message,direct_mention,mention', function(bot,message) {
@@ -213,8 +213,8 @@ doc.useServiceAccountAuth(creds, function (err) {
             var userId;
             var command = message.match[1];
             var field1 = message.match[2];
-            var timeInput = moment().format('HH:mm:ss'); 
-            var today = moment().format('DD/MM/YYYY');
+            var timeInput = moment().tz('Asia/Manila').format('HH:mm:ss'); 
+            var today = moment().tz('Asia/Manila').format('DD/MM/YYYY');
             var userFound = false;
             if(field1.substr(0,2)=='<@'){
                 userId = field1.substr(2, field1.length-3);
