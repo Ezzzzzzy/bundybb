@@ -14,28 +14,28 @@ var Botkit = require('botkit');
 var express = require('express');
 var fs = require('fs');
 var os = require('os');
-var sheetsLink = "https://docs.google.com/spreadsheets/d/1k6bNyz5a3r-zuG2Jkw-Yeg_FZ06543qOfpPiq7SBpsk/edit#gid=0g";
+// var sheetsLink = "https://docs.google.com/spreadsheets/d/1k6bNyz5a3r-zuG2Jkw-Yeg_FZ06543qOfpPiq7SBpsk/edit#gid=0g"; //whitecloak
+var sheetsLink = "https://docs.google.com/spreadsheets/d/1RNKEAZ2HRCWT--Vj8mV3yQOgPYa4qIQJdLEvGTHGc9A/edit#gid=823444506"; //botbrosAI
 var app = express();
 var GoogleSpreadsheet = require('google-spreadsheet');
 var creds = require('./client_secret.json');
 var moment = require('moment-timezone');
-var spreadsheetId = '1k6bNyz5a3r-zuG2Jkw-Yeg_FZ06543qOfpPiq7SBpsk';
+// var spreadsheetId = '1k6bNyz5a3r-zuG2Jkw-Yeg_FZ06543qOfpPiq7SBpsk'; //whitecloak
+var spreadsheetId = '1RNKEAZ2HRCWT--Vj8mV3yQOgPYa4qIQJdLEvGTHGc9A'; //botbrosAI
 var doc = new GoogleSpreadsheet(spreadsheetId);
 var worksheetNum = 1;
 
 moment().format();
-var controller = Botkit.slackbot({
- debug: false
-});
+moment.suppressDeprecationWarnings = true;
+var controller = Botkit.slackbot({ debug: false });
 var bot = controller.spawn({
-  token: process.env.SLACK_TOKEN
+    token: 'xoxb-265554471089-tjUOBTxm6tXkAE7L8zNEMMjc'
 });
-bot.startRTM(function(err,bot,payload) {
 
-});
+bot.startRTM(function(err,bot,payload) {});
 controller.setupWebserver(process.env.PORT || 3001, function(err, webserver) {
     controller.createWebhookEndpoints(webserver, bot, function() {});
- });
+});
 
 /*************************
  *****bundy-functions*****
@@ -57,7 +57,8 @@ function timeIn(bot, message, tstamp, worksheetNum){
             });
         });
     });
- }
+}
+
 function timeOut(bot, message, tstamp, worksheetNum){
     var today = moment().format('DD/MM/YYYY');
     bot.api.users.info({user:message.user},function(err,response) {
@@ -75,9 +76,73 @@ function timeOut(bot, message, tstamp, worksheetNum){
             });
         });
     });
- }
+}
 
- 
+function report(bot, message, username, fromDate, toDate){
+    doc.useServiceAccountAuth(creds, function (err) {
+        if (err) console.log(err);
+        doc.getInfo((err, info)=>{
+            if(err) console.log(err);
+            info.worksheets[1].getRows({
+                offset: 2,
+                orderby: 'col2'
+            }, (err, rows)=>{
+                if(err) console.log(err);
+                fromDate = moment(fromDate, 'YYYY-MM-DD').format('DD-MMM-YYYY');
+                toDate = moment(toDate, 'YYYY-MM-DD').format('DD-MMM-YYYY');
+                doc.addWorksheet({
+                    'title': username + " " + fromDate + " to " + toDate,
+                    'colCount':'12', 
+                    'headers':['Date', 'Day', 'Start_time', 'Finish_time',
+                                'Total_hours' ,'Notes','Reg_day', 'OTH',
+                                'HOL', 'SL', 'VL', 'Total_days']
+                },(err)=>{
+                    doc.getInfo(function(err, response){
+                        worksheetNum = response.worksheets.length;
+                        var arrayOfValues = [], hoho = [];
+                        for(var x=0;x<rows.length;x++){
+                            if(rows[x].username === username){
+                                var dayin, hehe ={},
+                                    todayWithoutTime = moment(rows[x].datein, 'DD-MM-YYYY').format('MMM-D-YY'), 
+                                    todayAtTen = moment(todayWithoutTime + " 10:00:00").format('MMM-D-YY HH:mm:ss');
+                                if(rows[x].datein != "" && moment.utc(moment(rows[x].datein, 'DD/MM/YYYY').format('MMM-DD-YYYY')).isSameOrAfter(fromDate) && moment.utc(moment(rows[x].datein, 'DD/MM/YYYY').format('MMM-DD-YYYY')).isSameOrBefore(toDate)){
+                                    dayin = moment(rows[x].datein + " " + rows[x].timein, 'DD-MM-YYYY HH:mm:ss').format('MMM-D-YY HH:mm:ss');
+                                    hehe['Date'] = moment(rows[x].datein, 'DD/MM/YYYY').format('MMM-DD');
+                                    hehe['Day'] = moment(rows[x].datein, 'DD/MM/YYYY').format('ddd');
+                                    hehe['Start_time'] = rows[x].timein;
+                                    hehe['Notes'] = "LATE BY " + moment.utc(moment(dayin).diff(moment(todayAtTen))).format('H:mm:ss');
+                                }
+                                if(rows[x].dateout != "" && moment.utc(moment(rows[x].dateout, 'DD/MM/YYYY').format('MMM-DD-YYYY')).isSameOrAfter(fromDate) && moment.utc(moment(rows[x].dateout, 'DD/MM/YYYY').format('MMM-DD-YYYY')).isSameOrBefore(toDate)){
+                                    var dayout = moment(rows[x].dateout + " " + rows[x].timeout, 'DD-MM-YYYY HH:mm:ss').format('MMM-D-YY HH:mm:ss');
+                                    var totalHours = moment.utc(moment(dayout).diff(moment(dayin))).format('HH:mm:ss');
+                                    hehe['Finish_time'] = rows[x].timeout;
+                                    hehe['Total_hours'] = totalHours;
+                                }
+                                if(Object.keys(hehe).length != 0){
+                                    arrayOfValues.push(hehe)
+                                }
+                            }
+                        }
+                        arrayOfValues.map((values, i, arr)=>{
+                            if(i%2 === 0){
+                                var nullValues = { OTH: "", HOL: "", SL: "", VL: "", Reg_day: 1, Total_days: 1,}
+                                var hehe = Object.assign({},arr[i], nullValues ,arr[i+1])
+                                hoho.push(hehe)
+                            }
+                        })
+                        for(var x=0; x<hoho.length;x++){
+                            // setInterval(()=>{
+                                doc.addRow(worksheetNum, hoho[x], (err,row)=>{
+                                    if(err) console.log(err)
+                                })
+                            // }, 100)
+                        }
+                    })
+                })
+            })
+        });
+    })
+}
 
 doc.useServiceAccountAuth(creds, function (err) {
     doc.getInfo(function(err, response) {
@@ -86,9 +151,16 @@ doc.useServiceAccountAuth(creds, function (err) {
         //===
         //bot commands
         //===
-        controller.hears(['^help$'], 'direct_message,direct_mention,mention', function(bot,message) {
+
+        controller.hears(['^report (.*) (.*) (.*)$'], 'direct_message,direct_mention,mention', function(bot,message){
+            var username = message.match[1], fromDate = message.match[2], toDate = message.match[3];
+            report(bot, message, username, fromDate, toDate);
+            bot.reply(message, 'hello world');
+        });
+
+        controller.hears(['^help$'], 'direct_message,direct_mention,mention', function(bot,message){
             bot.reply(message, 'Command Format: \n' +
-                '@bundy <command> \n' +
+                '@time <command> \n' +
                 'Timestamp Format: HH:MM:SS 24-hr format \n' +
                 'Timezone: Asia/Manila \n\n' +
                 'Commands:\n'+
@@ -99,15 +171,18 @@ doc.useServiceAccountAuth(creds, function (err) {
                 'user in/out timestamp/username username/timestamp \n\t\t times in/out of specified user at timestamp \n' +
                 'new sheet \n\t\t creates a new worksheet and sets that worksheet as the target for timing in and out'
             );
-         })
+        });
+
         controller.hears(['^in$'], 'direct_message,direct_mention,mention', function(bot, message) {
-            var timestamp =moment().tz('Asia/Manila').format('HH:mm:ss');
+            var timestamp=moment().tz('Asia/Manila').format('HH:mm:ss');
             timeIn(bot, message, timestamp, worksheetNum);
-         })
+        });
+        
         controller.hears(['^out$'], 'direct_message,direct_mention,mention', function(bot,message) {
             var timestamp = moment().tz('Asia/Manila').format('HH:mm:ss');
             timeOut(bot, message, timestamp, worksheetNum);  
-         })
+        });
+
         controller.hears(['^new sheet$'], 'direct_message,direct_mention,mention', function(bot,message) {
             var worksheetTemp;
             doc.useServiceAccountAuth(creds, function (err) {
@@ -124,7 +199,8 @@ doc.useServiceAccountAuth(creds, function (err) {
                    })
                 });
             });
-         });
+        });
+
         controller.hears(['^user (.*) (.*) (.*)$'], 'direct_message,direct_mention,mention', function(bot,message) {
             var command = message.match[1];
             var field1 = message.match[2];
@@ -136,7 +212,7 @@ doc.useServiceAccountAuth(creds, function (err) {
 
             var userFound = false;
 
-            if(field2!=null &&field1!=null) {
+            if(field2!=null && field1!=null) {
                 if(field1.substr(0,2)=='<@'){
                     userId = field1.substr(2, field1.length-3);
                     timeInput = field2;
@@ -208,7 +284,8 @@ doc.useServiceAccountAuth(creds, function (err) {
                     bot.reply(message, "I don\'t understand the command. Please type @bundy help for a list of all the commands");
                 }
             }
-        })
+        });
+
         controller.hears(['^user (.*) (.*)$'], 'direct_message,direct_mention,mention', function(bot,message) {
             var userId;
             var command = message.match[1];
@@ -220,7 +297,7 @@ doc.useServiceAccountAuth(creds, function (err) {
                 userId = field1.substr(2, field1.length-3);
             }
             
-            if(command == 'in'){
+            if(command === 'in'){
                 bot.api.users.list({},function(err, response) {
                     for(var i = 0; i < response.members.length; i++){
                         if(response.members[i].id==userId){
@@ -246,7 +323,7 @@ doc.useServiceAccountAuth(creds, function (err) {
                     }
                 });
             }
-            else if(command == 'out'){
+            else if(command === 'out'){
                 bot.api.users.list({},function(err, response) {
                     for(var i = 0; i < response.members.length; i++){
                         if(response.members[i].id==userId){
@@ -272,10 +349,14 @@ doc.useServiceAccountAuth(creds, function (err) {
                     }
                 });
             }
+            else if(command === 'report'){
+
+            }
             else{
                 bot.reply(message, "I don\'t understand the command. Please type @bundy help for a list of all the commands");
             }
         });
+
         controller.hears(['(.*) (.*)'], 'direct_message,direct_mention,mention', function(bot,message) {
             var command = message.match[1];
             var timestamp = message.match[2];
@@ -297,5 +378,14 @@ doc.useServiceAccountAuth(creds, function (err) {
                 bot.reply(message, "Please follow the time format (HH:MM:SS) 24-hours.");
             }
         });
+
+        // controller.hears(['(.*) (.*) (.*)'], 'direct_message, direct_mention, mention', (bot, message)=>{
+        //     var command = message.match[1], username = message.match[2], dateRange = message.match[3];
+        //     if(command === 'report'){
+        //         bot.reply(message, username);
+        //     }else{
+        //         bot.reply(message, 'hello world')
+        //     }
+        // })
     });
 });
