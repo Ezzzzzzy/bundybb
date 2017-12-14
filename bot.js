@@ -23,7 +23,7 @@ var moment = require('moment-timezone');
 // var spreadsheetId = '1k6bNyz5a3r-zuG2Jkw-Yeg_FZ06543qOfpPiq7SBpsk'; //whitecloak
 var spreadsheetId = '1RNKEAZ2HRCWT--Vj8mV3yQOgPYa4qIQJdLEvGTHGc9A'; //botbrosAI
 var doc = new GoogleSpreadsheet(spreadsheetId);
-var worksheetNum = 1;
+var worksheetNum = 0;
 
 moment().format();
 moment.suppressDeprecationWarnings = true;
@@ -85,61 +85,96 @@ function report(bot, message, username, fromDate, toDate){
             if(err) console.log(err);
             info.worksheets[1].getRows({
                 offset: 2,
-                orderby: 'col2'
+                orderby: 'col3'
             }, (err, rows)=>{
-                if(err) console.log(err);
-                fromDate = moment(fromDate, 'YYYY-MM-DD').format('DD-MMM-YYYY');
-                toDate = moment(toDate, 'YYYY-MM-DD').format('DD-MMM-YYYY');
-                doc.addWorksheet({
-                    'title': username + " " + fromDate + " to " + toDate,
-                    'colCount':'12', 
-                    'headers':['Date', 'Day', 'Start_time', 'Finish_time',
-                                'Total_hours' ,'Notes','Reg_day', 'OTH',
-                                'HOL', 'SL', 'VL', 'Total_days']
-                },(err)=>{
-                    doc.getInfo(function(err, response){
-                        worksheetNum = response.worksheets.length;
-                        var arrayOfValues = [], hoho = [];
-                        for(var x=0;x<rows.length;x++){
-                            if(rows[x].username === username){
-                                var dayin, hehe ={},
-                                    todayWithoutTime = moment(rows[x].datein, 'DD-MM-YYYY').format('MMM-D-YY'), 
-                                    todayAtTen = moment(todayWithoutTime + " 10:00:00").format('MMM-D-YY HH:mm:ss');
-                                if(rows[x].datein != "" && moment.utc(moment(rows[x].datein, 'DD/MM/YYYY').format('MMM-DD-YYYY')).isSameOrAfter(fromDate) && moment.utc(moment(rows[x].datein, 'DD/MM/YYYY').format('MMM-DD-YYYY')).isSameOrBefore(toDate)){
-                                    dayin = moment(rows[x].datein + " " + rows[x].timein, 'DD-MM-YYYY HH:mm:ss').format('MMM-D-YY HH:mm:ss');
-                                    hehe['Date'] = moment(rows[x].datein, 'DD/MM/YYYY').format('MMM-DD');
-                                    hehe['Day'] = moment(rows[x].datein, 'DD/MM/YYYY').format('ddd');
-                                    hehe['Start_time'] = rows[x].timein;
-                                    hehe['Notes'] = "LATE BY " + moment.utc(moment(dayin).diff(moment(todayAtTen))).format('H:mm:ss');
-                                }
-                                if(rows[x].dateout != "" && moment.utc(moment(rows[x].dateout, 'DD/MM/YYYY').format('MMM-DD-YYYY')).isSameOrAfter(fromDate) && moment.utc(moment(rows[x].dateout, 'DD/MM/YYYY').format('MMM-DD-YYYY')).isSameOrBefore(toDate)){
-                                    var dayout = moment(rows[x].dateout + " " + rows[x].timeout, 'DD-MM-YYYY HH:mm:ss').format('MMM-D-YY HH:mm:ss');
-                                    var totalHours = moment.utc(moment(dayout).diff(moment(dayin))).format('HH:mm:ss');
-                                    hehe['Finish_time'] = rows[x].timeout;
-                                    hehe['Total_hours'] = totalHours;
-                                }
-                                if(Object.keys(hehe).length != 0){
-                                    arrayOfValues.push(hehe)
+                //Get Holiday 2018 //worksheetTitle = Holidays 2018
+                var holidays = [];
+                for(var x=0;x<rows.length;x++){
+                    var holiday = {}
+                    holiday['date'] = rows[x].date;
+                    holiday['day'] = rows[x].day;
+                    holiday['holiday'] = rows[x].holiday;
+                    holiday['regular'] = rows[x].regular;
+                    holidays.push(holiday);
+                }
+                info.worksheets[0].getRows({
+                    offset: 2,
+                    orderby: 'col2'
+                }, (err, rows)=>{
+                    if(err) console.log(err);
+                    fromDate = moment(fromDate, 'YYYY-MM-DD').format('DD-MMM-YYYY');
+                    toDate = moment(toDate, 'YYYY-MM-DD').format('DD-MMM-YYYY');
+                    //create worksheet for report
+                    doc.addWorksheet({
+                        'title': username + " " + fromDate + " to " + toDate,
+                        'colCount':'12', 
+                        'headers':['Date', 'Day', 'Start_time', 'Finish_time',
+                                    'Total_hours' ,'Notes','Reg_day', 'OTH',
+                                    'HOL', 'SL', 'VL', 'Total_days']
+                    },(err)=>{
+                        doc.getInfo(function(err, response){
+                            worksheetNum = response.worksheets.length;
+                            var arrayOfRowsToBeAdded = [], rowsToBeAdded = [];
+                            //get records from masterlist
+                            for(var x=0;x<rows.length;x++){
+                                //check username
+                                if(rows[x].username === username){
+                                    var dayin, row ={},
+                                        todayWithoutTime = moment(rows[x].datein, 'DD-MM-YYYY').format('MMM-D-YY'), 
+                                        todayAtTen = moment(todayWithoutTime + " 10:00:00").format('MMM-D-YY HH:mm:ss');
+                                    //if date_in are in range, put it in variable "row"(JSON)
+                                    if(rows[x].datein != "" && moment.utc(moment(rows[x].datein, 'DD/MM/YYYY').format('MMM-DD-YYYY')).isSameOrAfter(fromDate) && moment.utc(moment(rows[x].datein, 'DD/MM/YYYY').format('MMM-DD-YYYY')).isSameOrBefore(toDate)){
+                                        dayin = moment(rows[x].datein + " " + rows[x].timein, 'DD-MM-YYYY HH:mm:ss').format('MMM-D-YY HH:mm:ss');
+                                        row['Date'] = moment(rows[x].datein, 'DD/MM/YYYY').format('MMM-DD');
+                                        row['Day'] = moment(rows[x].datein, 'DD/MM/YYYY').format('ddd');
+                                        row['Start_time'] = rows[x].timein;
+                                        row['Notes'] = moment(dayin).isAfter(moment(todayAtTen)) ? "late by: " + moment.utc(moment(dayin).diff(moment(todayAtTen))).format('H:mm:ss') : ""
+
+                                        //check if date is holiday
+                                        for(var k=0;k<holidays.length;k++){
+                                            if(moment.utc(moment(holidays[k].date).format('MMM-D-YY')).isSame(moment.utc(moment(dayin).format('MMM-D-YY')))){
+                                                var typeOfHoliday = holidays[k].regular == 0 ? 'Special Non-Working Holiday' : 'Reg Holiday';
+                                                // row['HOL'] = holidays[k].holiday; //print in googlesheet the name of holiday
+                                                row['HOL'] = 1;
+                                                row['Reg_day'] = "";
+                                            }else{
+                                                row['Reg_day'] = 1;
+                                            }
+                                        }
+                                    }
+                                    //if date_out are in range append in variable "row"(JSON)
+                                    if(rows[x].dateout != "" && moment.utc(moment(rows[x].dateout, 'DD/MM/YYYY').format('MMM-DD-YYYY')).isSameOrAfter(fromDate) && moment.utc(moment(rows[x].dateout, 'DD/MM/YYYY').format('MMM-DD-YYYY')).isSameOrBefore(toDate)){
+                                        var dayout = moment(rows[x].dateout + " " + rows[x].timeout, 'DD-MM-YYYY HH:mm:ss').format('MMM-D-YY HH:mm:ss');
+                                        var totalHours = moment.utc(moment(dayout).diff(moment(dayin))).subtract({hours: 1}).format('HH:mm:ss');
+                                        row['Finish_time'] = rows[x].timeout;
+                                        row['Total_hours'] = totalHours;
+                                    }
+
+                                    //push to outer array
+                                    if(Object.keys(row).length != 0){
+                                        arrayOfRowsToBeAdded.push(row)
+                                    }
                                 }
                             }
-                        }
-                        arrayOfValues.map((values, i, arr)=>{
-                            if(i%2 === 0){
-                                var nullValues = { OTH: "", HOL: "", SL: "", VL: "", Reg_day: 1, Total_days: 1,}
-                                var hehe = Object.assign({},arr[i], nullValues ,arr[i+1])
-                                hoho.push(hehe)
-                            }
-                        })
-                        for(var x=0; x<hoho.length;x++){
-                            // setInterval(()=>{
-                                doc.addRow(worksheetNum, hoho[x], (err,row)=>{
+
+                            arrayOfRowsToBeAdded.map((values, i, arr)=>{
+                                if(i%2 === 0){
+                                    var nullValues = { OTH: "", SL: "", VL: "", Total_days: 1,}
+                                    rowsToBeAdded.push(Object.assign({},arr[i], nullValues ,arr[i+1]))
+                                }
+                            });
+
+                            //add the rows in the worksheet that was created
+                            for(var x=0; x<rowsToBeAdded.length;x++){
+                                doc.addRow(worksheetNum, rowsToBeAdded[x], (err,row)=>{
                                     if(err) console.log(err)
                                 })
-                            // }, 100)
-                        }
+                            };
+                        })
+                        bot.reply(message, "Your report has been made");
                     })
                 })
-            })
+            });
         });
     })
 }
@@ -151,12 +186,6 @@ doc.useServiceAccountAuth(creds, function (err) {
         //===
         //bot commands
         //===
-
-        controller.hears(['^report (.*) (.*) (.*)$'], 'direct_message,direct_mention,mention', function(bot,message){
-            var username = message.match[1], fromDate = message.match[2], toDate = message.match[3];
-            report(bot, message, username, fromDate, toDate);
-            bot.reply(message, 'hello world');
-        });
 
         controller.hears(['^help$'], 'direct_message,direct_mention,mention', function(bot,message){
             bot.reply(message, 'Command Format: \n' +
@@ -277,11 +306,11 @@ doc.useServiceAccountAuth(creds, function (err) {
                         });
                     }
                     else{
-                        bot.reply(message, "I don\'t understand the command. Please type @bundy help for a list of all the commands");
+                        bot.reply(message, "I don\'t understand the command. Please type @bundy help for a list of all the commands HEHEHEHE");
                     }
                 }
                 else {
-                    bot.reply(message, "I don\'t understand the command. Please type @bundy help for a list of all the commands");
+                    bot.reply(message, "I don\'t understand the command. Please type @bundy help for a list of all the commands HEHEHEHE");
                 }
             }
         });
@@ -353,39 +382,35 @@ doc.useServiceAccountAuth(creds, function (err) {
 
             }
             else{
-                bot.reply(message, "I don\'t understand the command. Please type @bundy help for a list of all the commands");
+                bot.reply(message, "I don\'t understand the command. Please type @bundy help for a list of all the commands HEHEHEHE");
             }
         });
 
-        controller.hears(['(.*) (.*)'], 'direct_message,direct_mention,mention', function(bot,message) {
-            var command = message.match[1];
-            var timestamp = message.match[2];
-            if(moment(timestamp, 'HH:mm:ss')) {
-                if(command=='in'){
-                    timeIn(bot, message, timestamp, worksheetNum);
-                }
-                // else if(command=='renew'){
-                //     renew(bot, message, timestamp, worksheetNum);
-                // }
-                else if(command=='out'){
-                    timeOut(bot, message, timestamp, worksheetNum);
-                }
-                else{
-                    bot.reply(message, "I don\'t understand the command. Please type @bundy help for a list of all the commands");
-                }
-            }
-            else{
-                bot.reply(message, "Please follow the time format (HH:MM:SS) 24-hours.");
-            }
-        });
-
-        // controller.hears(['(.*) (.*) (.*)'], 'direct_message, direct_mention, mention', (bot, message)=>{
-        //     var command = message.match[1], username = message.match[2], dateRange = message.match[3];
-        //     if(command === 'report'){
-        //         bot.reply(message, username);
-        //     }else{
-        //         bot.reply(message, 'hello world')
+        // controller.hears(['(.*) (.*)'], 'direct_message,direct_mention,mention', function(bot,message) {
+        //     var command = message.match[1];
+        //     var timestamp = message.match[2];
+        //     if(moment(timestamp, 'HH:mm:ss')) {
+        //         if(command=='in'){
+        //             timeIn(bot, message, timestamp, worksheetNum);
+        //         }
+        //         // else if(command=='renew'){
+        //         //     renew(bot, message, timestamp, worksheetNum);
+        //         // }
+        //         else if(command=='out'){
+        //             timeOut(bot, message, timestamp, worksheetNum);
+        //         }
+        //         else{
+        //             bot.reply(message, "I don\'t understand the command. Please type @bundy help for a list of all the commands 2 PARAMETERS W/O USER");
+        //         }
         //     }
-        // })
+        //     else{
+        //         bot.reply(message, "Please follow the time format (HH:MM:SS) 24-hours.");
+        //     }
+        // });
+
+        controller.hears(['^report (.*) (.*) (.*)$'], 'direct_message,direct_mention,mention', function(bot,message){
+            var username = message.match[1], fromDate = message.match[2], toDate = message.match[3];
+            report(bot, message, username, fromDate, toDate);
+        });
     });
 });
