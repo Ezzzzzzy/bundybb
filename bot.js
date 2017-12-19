@@ -23,7 +23,7 @@ var moment = require('moment-timezone');
 // var spreadsheetId = '1k6bNyz5a3r-zuG2Jkw-Yeg_FZ06543qOfpPiq7SBpsk'; //whitecloak
 var spreadsheetId = '1RNKEAZ2HRCWT--Vj8mV3yQOgPYa4qIQJdLEvGTHGc9A'; //botbrosAI
 var doc = new GoogleSpreadsheet(spreadsheetId);
-var worksheetNum = 0;
+var worksheetNum = 1;
 
 moment().format();
 moment.suppressDeprecationWarnings = true;
@@ -44,7 +44,7 @@ function timeIn(bot, message, tstamp, worksheetNum){
     var today = moment().format('DD/MM/YYYY');
     bot.api.users.info({user:message.user},function(err,response) {
         doc.useServiceAccountAuth(creds, function (err) {
-            doc.addRow(worksheetNum, {
+            doc.addRow(1, {
                 Username: response.user.name,
                 Name: response.user.profile.real_name,
                 Date_In: today,
@@ -63,7 +63,7 @@ function timeOut(bot, message, tstamp, worksheetNum){
     var today = moment().format('DD/MM/YYYY');
     bot.api.users.info({user:message.user},function(err,response) {
         doc.useServiceAccountAuth(creds, function (err) {
-            doc.addRow(worksheetNum, {
+            doc.addRow(1, {
                 Username: response.user.name,
                 Name: response.user.profile.real_name,
                 Date_Out: today,
@@ -113,75 +113,76 @@ function report(bot, message, username, fromDate, toDate){
 
                     if(arrayOfusername.length != 0){
                         //create worksheet for report
-                        // doc.addWorksheet({
-                        //     'title': username + " " + fromDate + " to " + toDate,
-                        //     'colCount':'12', 
-                        //     'headers':['Date', 'Day', 'Start_time', 'Finish_time',
-                        //                 'Total_hours' ,'Notes','Reg_day', 'OTH',
-                        //                 'HOL', 'SL', 'VL', 'Total_days']
-                        // },(err)=>{
-                        //     doc.getInfo(function(err, response){
-                        //         worksheetNum = response.worksheets.length;
-                        //         var arrayOfRowsToBeAdded = [], rowsToBeAdded = [];
-                        //         //get records from masterlist
-                        //         for(var x=0;x<rows.length;x++){
-                        //             //check username
-                        //             if(rows[x].username === username){
-                        //                 var dayin, row ={},
-                        //                     todayWithoutTime = moment(rows[x].datein, 'DD-MM-YYYY').format('MMM-D-YY'), 
-                        //                     todayAtTen = moment(todayWithoutTime + " 10:00:00").format('MMM-D-YY HH:mm:ss');
-                        //                 //if date_in are in range, put it in variable "row"(JSON)
-                        //                 if(rows[x].datein != "" && moment.utc(moment(rows[x].datein, 'DD/MM/YYYY').format('MMM-DD-YYYY')).isSameOrAfter(fromDate) && moment.utc(moment(rows[x].datein, 'DD/MM/YYYY').format('MMM-DD-YYYY')).isSameOrBefore(toDate)){
-                        //                     dayin = moment(rows[x].datein + " " + rows[x].timein, 'DD-MM-YYYY HH:mm:ss').format('MMM-D-YY HH:mm:ss');
-                        //                     row['Date'] = moment(rows[x].datein, 'DD/MM/YYYY').format('MMM-DD');
-                        //                     row['Day'] = moment(rows[x].datein, 'DD/MM/YYYY').format('ddd');
-                        //                     row['Start_time'] = rows[x].timein;
-                        //                     row['Notes'] = moment(dayin).isAfter(moment(todayAtTen)) ? "late by: " + moment.utc(moment(dayin).diff(moment(todayAtTen))).format('H:mm:ss') : ""
+                        doc.addWorksheet({
+                            'title': username + " " + fromDate + " to " + toDate,
+                            'colCount':'12', 
+                            'headers':['Date', 'Day', 'Start_time', 'Finish_time',
+                                        'Total_hours' ,'Notes','Reg_day', 'OTH',
+                                        'HOL', 'SL', 'VL', 'Total_days']
+                        },(err)=>{
+                            doc.getInfo(function(err, response){
+                                worksheetNum = response.worksheets.length;
+                                var arrayOfRowsToBeAdded = [], rowsToBeAdded = [];
+                                //get records from masterlist
+                                for(var x=0;x<rows.length;x++){
+                                    //check username
+                                    if(rows[x].username === username){
+                                        var dayin, row ={},
+                                            todayWithoutTime = moment(rows[x].datein, 'DD-MM-YYYY').format('MMM-D-YY'), 
+                                            todayAtTen = moment(todayWithoutTime + " 10:00:00").format('MMM-D-YY HH:mm:ss');
+                                        //if date_in are in range, put it in variable "row"(JSON)
+                                        if(rows[x].datein != "" && moment.utc(moment(rows[x].datein, 'DD/MM/YYYY').format('MMM-DD-YYYY')).isSameOrAfter(fromDate) && moment.utc(moment(rows[x].datein, 'DD/MM/YYYY').format('MMM-DD-YYYY')).isSameOrBefore(toDate)){
+                                            dayin = moment(rows[x].datein + " " + rows[x].timein, 'DD-MM-YYYY HH:mm:ss').format('MMM-D-YY HH:mm:ss');
+                                            row['Date'] = moment(rows[x].datein, 'DD/MM/YYYY').format('MMM-DD');
+                                            row['Day'] = moment(rows[x].datein, 'DD/MM/YYYY').format('ddd');
+                                            row['Start_time'] = rows[x].timein;
+                                            row['Notes'] = moment(dayin).isAfter(moment(todayAtTen)) ? "late by: " + moment.utc(moment(dayin).diff(moment(todayAtTen))).format('H:mm:ss') : ""
 
-                        //                     //check if date is holiday
-                        //                     for(var k=0;k<holidays.length;k++){
-                        //                         if(moment.utc(moment(holidays[k].date).format('MMM-D-YY')).isSame(moment.utc(moment(dayin).format('MMM-D-YY')))){
-                        //                             var typeOfHoliday = holidays[k].regular == 0 ? 'Special Non-Working Holiday' : 'Reg Holiday';
-                        //                             // row['HOL'] = holidays[k].holiday; //print in googlesheet the name of holiday
-                        //                             row['HOL'] = 1;
-                        //                             row['Reg_day'] = "";
-                        //                         }else{
-                        //                             row['Reg_day'] = 1;
-                        //                         }
-                        //                     }
-                        //                 }
-                        //                 //if date_out are in range append in variable "row"(JSON)
-                        //                 if(rows[x].dateout != "" && moment.utc(moment(rows[x].dateout, 'DD/MM/YYYY').format('MMM-DD-YYYY')).isSameOrAfter(fromDate) && moment.utc(moment(rows[x].dateout, 'DD/MM/YYYY').format('MMM-DD-YYYY')).isSameOrBefore(toDate)){
-                        //                     var dayout = moment(rows[x].dateout + " " + rows[x].timeout, 'DD-MM-YYYY HH:mm:ss').format('MMM-D-YY HH:mm:ss');
-                        //                     var totalHours = moment.utc(moment(dayout).diff(moment(dayin))).subtract({hours: 1}).format('HH:mm:ss');
-                        //                     row['Finish_time'] = rows[x].timeout;
-                        //                     row['Total_hours'] = totalHours;
-                        //                 }
+                                            //check if date is holiday
+                                            for(var k=0;k<holidays.length;k++){
+                                                if(moment.utc(moment(holidays[k].date).format('MMM-D-YY')).isSame(moment.utc(moment(dayin).format('MMM-D-YY')))){
+                                                    var typeOfHoliday = holidays[k].regular == 0 ? 'Special Non-Working Holiday' : 'Reg Holiday';
+                                                    // row['HOL'] = holidays[k].holiday; //print in googlesheet the name of holiday
+                                                    row['HOL'] = 1;
+                                                    row['Reg_day'] = "";
+                                                }else{
+                                                    row['Reg_day'] = 1;
+                                                }
+                                            }
+                                        }
+                                        //if date_out are in range append in variable "row"(JSON)
+                                        if(rows[x].dateout != "" && moment.utc(moment(rows[x].dateout, 'DD/MM/YYYY').format('MMM-DD-YYYY')).isSameOrAfter(fromDate) && moment.utc(moment(rows[x].dateout, 'DD/MM/YYYY').format('MMM-DD-YYYY')).isSameOrBefore(toDate)){
+                                            var dayout = moment(rows[x].dateout + " " + rows[x].timeout, 'DD-MM-YYYY HH:mm:ss').format('MMM-D-YY HH:mm:ss');
+                                            var totalHours = moment.utc(moment(dayout).diff(moment(dayin))).subtract({hours: 1}).format('HH:mm:ss');
+                                            row['Finish_time'] = rows[x].timeout;
+                                            row['Total_hours'] = totalHours;
+                                        }
 
-                        //                 //push to outer array
-                        //                 if(Object.keys(row).length != 0){
-                        //                     arrayOfRowsToBeAdded.push(row)
-                        //                 }
-                        //             }
-                        //         }
+                                        //push to outer array
+                                        if(Object.keys(row).length != 0){
+                                            arrayOfRowsToBeAdded.push(row)
+                                        }
+                                    }
+                                }
 
-                        //         if(arrayOfRowsToBeAdded.length != 0){
-                        //             arrayOfRowsToBeAdded.map((values, i, arr)=>{
-                        //                 if(i%2 === 0){
-                        //                     var nullValues = { OTH: "", SL: "", VL: "", Total_days: 1,}
-                        //                     rowsToBeAdded.push(Object.assign({},arr[i], nullValues ,arr[i+1]))
-                        //                 }
-                        //             });
+                                if(arrayOfRowsToBeAdded.length != 0){
+                                    arrayOfRowsToBeAdded.map((values, i, arr)=>{
+                                        if(i%2 === 0){
+                                            var nullValues = { OTH: "", SL: "", VL: "", Total_days: 1,}
+                                            rowsToBeAdded.push(Object.assign({},arr[i], nullValues ,arr[i+1]))
+                                        }
+                                    });
 
-                        //             //add the rows in the worksheet that was created
-                        //             for(var x=0; x<rowsToBeAdded.length;x++){
-                        //                 doc.addRow(worksheetNum, rowsToBeAdded[x], (err,row)=>{
-                        //                     if(err) console.log(err)
-                        //                 })
-                        //             };
-                        //         }else bot.reply(message, "Your report has been made");
-                        //     })
-                        // })
+                                    //add the rows in the worksheet that was created
+                                    for(var x=0; x<rowsToBeAdded.length;x++){
+                                        doc.addRow(worksheetNum, rowsToBeAdded[x], (err,row)=>{
+                                            if(err) console.log(err)
+                                        })
+                                    };
+                                    bot.reply(message, "Your report has been made");
+                                }else bot.reply(message, "Your report has been made");
+                            })
+                        })
                     }else bot.reply(message, "No user was found.");
                 })
             });
