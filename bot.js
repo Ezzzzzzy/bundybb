@@ -397,27 +397,27 @@ doc.useServiceAccountAuth(creds, function (err) {
             }
         });
 
-        // controller.hears(['(.*) (.*)'], 'direct_message,direct_mention,mention', function(bot,message) {
-        //     var command = message.match[1];
-        //     var timestamp = message.match[2];
-        //     if(moment(timestamp, 'HH:mm:ss')) {
-        //         if(command=='in'){
-        //             timeIn(bot, message, timestamp, worksheetNum);
-        //         }
-        //         // else if(command=='renew'){
-        //         //     renew(bot, message, timestamp, worksheetNum);
-        //         // }
-        //         else if(command=='out'){
-        //             timeOut(bot, message, timestamp, worksheetNum);
-        //         }
-        //         else{
-        //             bot.reply(message, "I don\'t understand the command. Please type @bundy help for a list of all the commands 2 PARAMETERS W/O USER");
-        //         }
-        //     }
-        //     else{
-        //         bot.reply(message, "Please follow the time format (HH:MM:SS) 24-hours.");
-        //     }
-        // });
+        controller.hears(['(.*) (.*)'], 'direct_message,direct_mention,mention', function(bot,message) {
+            var command = message.match[1];
+            var timestamp = message.match[2];
+            if(moment(timestamp, 'HH:mm:ss')) {
+                if(command=='in'){
+                    timeIn(bot, message, timestamp, worksheetNum);
+                }
+                // else if(command=='renew'){
+                //     renew(bot, message, timestamp, worksheetNum);
+                // }
+                else if(command=='out'){
+                    timeOut(bot, message, timestamp, worksheetNum);
+                }
+                else{
+                    bot.reply(message, "I don\'t understand the command. Please type @bundy help for a list of all the commands.");
+                }
+            }
+            else{
+                bot.reply(message, "Please follow the time format (HH:MM:SS) 24-hours.");
+            }
+        });
 
         controller.hears(['^report (.*) (.*) (.*)$'], 'direct_message,direct_mention,mention', function(bot,message){
             var username = message.match[1], fromDate = message.match[2], toDate = message.match[3];
