@@ -396,8 +396,13 @@ doc.useServiceAccountAuth(creds, function (err) {
                 bot.reply(message, "I don\'t understand the command. Please type @bundy help for a list of all the commands HEHEHEHE");
             }
         });
+        
+        controller.hears(['^report (.*) (.*) (.*)$'], 'direct_message,direct_mention,mention', function(bot,message){
+            var username = message.match[1], fromDate = message.match[2], toDate = message.match[3];
+            report(bot, message, username, fromDate, toDate);
+        });
 
-        controller.hears(['(.*) (.*)'], 'direct_message,direct_mention,mention', function(bot,message) {
+        controller.hears(['(.*) (.*)$'], 'direct_message,direct_mention,mention', function(bot,message) {
             var command = message.match[1];
             var timestamp = message.match[2];
             if(moment(timestamp, 'HH:mm:ss')) {
@@ -419,9 +424,5 @@ doc.useServiceAccountAuth(creds, function (err) {
             }
         });
 
-        controller.hears(['^report (.*) (.*) (.*)$'], 'direct_message,direct_mention,mention', function(bot,message){
-            var username = message.match[1], fromDate = message.match[2], toDate = message.match[3];
-            report(bot, message, username, fromDate, toDate);
-        });
     });
 });
