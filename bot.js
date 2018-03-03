@@ -209,7 +209,7 @@ doc.useServiceAccountAuth(creds, function (err) {
                 'in/out timestamp \n\t\t times in/out  user at specified timestamp\n' +
                 'user in/out username\n\t\t times in/out or renews time in for specified user at current time\n'+ 
                 'user in/out timestamp/username username/timestamp \n\t\t times in/out of specified user at timestamp \n' +
-                'new sheet \n\t\t creates a new worksheet and sets that worksheet as the target for timing in and out...'
+                'new sheet \n\t\t creates a new worksheet and sets that worksheet as the target for timing in and out..'
             );
         });
 
