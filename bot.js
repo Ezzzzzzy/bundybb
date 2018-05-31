@@ -50,7 +50,7 @@ function findById(id, rows){
 function timeIn(bot, message, tstamp, worksheetNum, id){
     var today = moment().format('DD/MM/YYYY');
     bot.api.users.info({user:message.user},function(err,response) {
-        var rowId = id +response.user.name.substring(1,4)
+        var rowId = id +response.user.name
         var condi;
         console.log(rowId)
         doc.getRows(1,
