@@ -86,7 +86,7 @@ function timeIn(bot, message, tstamp, worksheetNum, id){
 function timeOut(bot, message, tstamp, worksheetNum,id){
     var today = moment().format('DD/MM/YYYY');
     bot.api.users.info({user:message.user},function(err,response) {
-        var rowId = id +response.user.name.substring(1,4)
+        var rowId = id +response.user.name
         doc.useServiceAccountAuth(creds, function (err) {
             doc.getRows(1,
                 {
@@ -438,6 +438,7 @@ doc.useServiceAccountAuth(creds, function (err) {
             var command = message.match[1];
             var timestamp = message.match[2];
             var id = moment().tz('Asia/Manila').format('MDYY')
+            console.log(moment(timestamp, 'HH:mm:ss').isValid())
             if(moment(timestamp, 'HH:mm:ss')) {
                 if(command=='in'){
                     timeIn(bot, message, timestamp, worksheetNum, id);
