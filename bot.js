@@ -439,7 +439,7 @@ doc.useServiceAccountAuth(creds, function (err) {
             var timestamp = message.match[2];
             var id = moment().tz('Asia/Manila').format('MDYY')
             console.log(moment(timestamp, 'HH:mm:ss').isValid())
-            if(moment(timestamp, 'HH:mm:ss')) {
+            if(moment(timestamp, 'HH:mm:ss').isValid()) {
                 if(command=='in'){
                     timeIn(bot, message, timestamp, worksheetNum, id);
                 }
