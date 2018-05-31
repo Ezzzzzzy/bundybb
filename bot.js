@@ -29,7 +29,7 @@ moment().format();
 moment.suppressDeprecationWarnings = true;
 var controller = Botkit.slackbot({ debug: false });
 var bot = controller.spawn({
-    token: 'xoxb-371703571442-372793421063-3O5ZzwIqJjIAaPd7V9HHYHPw'
+    token: 'xoxb-265554471089-tjUOBTxm6tXkAE7L8zNEMMjc'
 });
 
 bot.startRTM(function(err,bot,payload) {});
