@@ -29,7 +29,7 @@ moment().format();
 moment.suppressDeprecationWarnings = true;
 var controller = Botkit.slackbot({ debug: false });
 var bot = controller.spawn({
-    token: 'xoxb-265554471089-tjUOBTxm6tXkAE7L8zNEMMjc'
+    token: 'xoxb-371703571442-372793421063-3O5ZzwIqJjIAaPd7V9HHYHPw'
 });
 
 bot.startRTM(function(err,bot,payload) {});
@@ -40,43 +40,73 @@ controller.setupWebserver(process.env.PORT || 3001, function(err, webserver) {
 /*************************
  *****bundy-functions*****
  *************************/
-function timeIn(bot, message, tstamp, worksheetNum){
+function findById(id, rows){
+    var i
+    for(i in rows)
+      if(rows[i].id == id)
+        return i;
+  }
+
+function timeIn(bot, message, tstamp, worksheetNum, id){
     var today = moment().format('DD/MM/YYYY');
     bot.api.users.info({user:message.user},function(err,response) {
+        var rowId = id +response.user.name.substring(1,4)
+        var condi;
+        console.log(rowId)
+        doc.getRows(1,
+            {
+            offset: 1,
+            },(err,row)=>{
+             condi = findById(rowId,row)
+             if(condi == undefined){
+                doc.useServiceAccountAuth(creds, function (err) {
+                    doc.addRow(1, {
+                        Id: rowId,
+                        Username: response.user.name,
+                        Name: response.user.profile.real_name,
+                        Date_In: today,
+                        Time_In: tstamp
+                    }, function(err, row){
+                        if (err) {
+                            console.log(err);
+                        }
+                        bot.reply(message, response.user.profile.real_name + ', you have timed in.');
+                    });
+                });
+            }
+            else{
+                bot.reply(message, response.user.profile.real_name + ', you cant time in twice a day');
+            }
+            
+        })
+    });
+ 
+}
+
+function timeOut(bot, message, tstamp, worksheetNum,id){
+    var today = moment().format('DD/MM/YYYY');
+    bot.api.users.info({user:message.user},function(err,response) {
+        var rowId = id +response.user.name.substring(1,4)
         doc.useServiceAccountAuth(creds, function (err) {
-            doc.addRow(1, {
-                Username: response.user.name,
-                Name: response.user.profile.real_name,
-                Date_In: today,
-                Time_In: tstamp
-            }, function(err, row){
-                if (err) {
-                    console.log(err);
+            doc.getRows(1,
+                {
+                offset: 1,
+                },(err,row)=>{
+                if(findById(rowId,row) == undefined){
+                    bot.reply(message, response.user.profile.real_name + ', I think you did not time in. Please use my time in command before you time out');
+                }  
+                else{
+                    console.log(findById(rowId,row))
+                    row[findById(rowId,row)].Date_Out = today
+                    row[findById(rowId,row)].Time_Out = tstamp
+                    row[findById(rowId,row)].save();
+                    bot.reply(message, response.user.profile.real_name + ', you have timed out.');
                 }
-                bot.reply(message, response.user.profile.real_name + ', you have timed in.');
+            })
             });
-        });
     });
 }
 
-function timeOut(bot, message, tstamp, worksheetNum){
-    var today = moment().format('DD/MM/YYYY');
-    bot.api.users.info({user:message.user},function(err,response) {
-        doc.useServiceAccountAuth(creds, function (err) {
-            doc.addRow(1, {
-                Username: response.user.name,
-                Name: response.user.profile.real_name,
-                Date_Out: today,
-                Time_Out: tstamp
-            }, function(err, row){
-                if (err) {
-                    console.log(err);
-                }
-                bot.reply(message, response.user.profile.real_name + ', you have timed out.');
-            });
-        });
-    });
-}
 
 function report(bot, message, username, fromDate, toDate){
     doc.useServiceAccountAuth(creds, function (err) {
@@ -209,18 +239,20 @@ doc.useServiceAccountAuth(creds, function (err) {
                 'in/out timestamp \n\t\t times in/out  user at specified timestamp\n' +
                 'user in/out username\n\t\t times in/out or renews time in for specified user at current time\n'+ 
                 'user in/out timestamp/username username/timestamp \n\t\t times in/out of specified user at timestamp \n' +
-                'new sheet \n\t\t creates a new worksheet and sets that worksheet as the target for timing in and out..'
+                'new sheet \n\t\t cr    eates a new worksheet and sets that worksheet as the target for timing in and out..'
             );
         });
 
         controller.hears(['^in$'], 'direct_message,direct_mention,mention', function(bot, message) {
             var timestamp=moment().tz('Asia/Manila').format('HH:mm:ss');
-            timeIn(bot, message, timestamp, worksheetNum);
+            var id = moment().tz('Asia/Manila').format('MDYY')
+            timeIn(bot, message, timestamp, worksheetNum, id);
         });
         
         controller.hears(['^out$'], 'direct_message,direct_mention,mention', function(bot,message) {
             var timestamp = moment().tz('Asia/Manila').format('HH:mm:ss');
-            timeOut(bot, message, timestamp, worksheetNum);  
+            var id = moment().tz('Asia/Manila').format('MDYY')
+            timeOut(bot, message, timestamp, worksheetNum, id); 
         });
 
         controller.hears(['^new sheet$'], 'direct_message,direct_mention,mention', function(bot,message) {
@@ -405,15 +437,16 @@ doc.useServiceAccountAuth(creds, function (err) {
         controller.hears(['(.*) (.*)$'], 'direct_message,direct_mention,mention', function(bot,message) {
             var command = message.match[1];
             var timestamp = message.match[2];
+            var id = moment().tz('Asia/Manila').format('MDYY')
             if(moment(timestamp, 'HH:mm:ss')) {
                 if(command=='in'){
-                    timeIn(bot, message, timestamp, worksheetNum);
+                    timeIn(bot, message, timestamp, worksheetNum, id);
                 }
                 // else if(command=='renew'){
                 //     renew(bot, message, timestamp, worksheetNum);
                 // }
                 else if(command=='out'){
-                    timeOut(bot, message, timestamp, worksheetNum);
+                    timeOut(bot, message, timestamp, worksheetNum, id); 
                 }
                 else{
                     bot.reply(message, "I don\'t understand the command. Please type @bundy help for a list of all the commands.");
