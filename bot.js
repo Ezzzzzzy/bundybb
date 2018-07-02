@@ -29,11 +29,12 @@ moment().format();
 moment.suppressDeprecationWarnings = true;
 var controller = Botkit.slackbot({ debug: false });
 var bot = controller.spawn({
-    token: 'xoxb-265554471089-tjUOBTxm6tXkAE7L8zNEMMjc'
+    token: 'xoxb-371703571442-372341716082-nAw4UuvigHkY5ivN1YqHWjl9'
 });
 
 bot.startRTM(function(err,bot,payload) {});
-controller.setupWebserver(process.env.PORT || 3001, function(err, webserver) {
+controller.setupWebserver(process.env.PORT || 5000, function(err, webserver) {
+    console.log('listening')
     controller.createWebhookEndpoints(webserver, bot, function() {});
 });
 
@@ -162,8 +163,11 @@ function report(bot, message, username, fromDate, toDate){
                                             todayAtTen = moment(todayWithoutTime + " 10:00:00").format('MMM-D-YY HH:mm:ss');
                                         //if date_in are in range, put it in variable "row"(JSON)
                                         if(rows[x].datein != "" && moment.utc(moment(rows[x].datein, 'DD/MM/YYYY').format('MMM-DD-YYYY')).isSameOrAfter(fromDate) && moment.utc(moment(rows[x].datein, 'DD/MM/YYYY').format('MMM-DD-YYYY')).isSameOrBefore(toDate)){
+                                            // console.log(rows[x]);
+                                            
                                             dayin = moment(rows[x].datein + " " + rows[x].timein, 'DD-MM-YYYY HH:mm:ss').format('MMM-D-YY HH:mm:ss');
                                             row['Date'] = moment(rows[x].datein, 'DD/MM/YYYY').format('MMM-DD');
+                                            console.log(row['Date']);
                                             row['Day'] = moment(rows[x].datein, 'DD/MM/YYYY').format('ddd');
                                             row['Start_time'] = rows[x].timein;
                                             row['Notes'] = moment(dayin).isAfter(moment(todayAtTen)) ? "late by: " + moment.utc(moment(dayin).diff(moment(todayAtTen))).format('H:mm:ss') : ""
@@ -172,7 +176,8 @@ function report(bot, message, username, fromDate, toDate){
                                             for(var k=0;k<holidays.length;k++){
                                                 if(moment.utc(moment(holidays[k].date).format('MMM-D-YY')).isSame(moment.utc(moment(dayin).format('MMM-D-YY')))){
                                                     var typeOfHoliday = holidays[k].regular == 0 ? 'Special Non-Working Holiday' : 'Reg Holiday';
-                                                    // row['HOL'] = holidays[k].holiday; //print in googlesheet the name of holiday
+                                                    row['HOL'] = holidays[k].holiday; //print in googlesheet the name of holiday
+                                                    console.log(holidays[k].date);
                                                     row['HOL'] = 1;
                                                     row['Reg_day'] = "";
                                                 }else{
@@ -182,6 +187,7 @@ function report(bot, message, username, fromDate, toDate){
                                         }
                                         //if date_out are in range append in variable "row"(JSON)
                                         if(rows[x].dateout != "" && moment.utc(moment(rows[x].dateout, 'DD/MM/YYYY').format('MMM-DD-YYYY')).isSameOrAfter(fromDate) && moment.utc(moment(rows[x].dateout, 'DD/MM/YYYY').format('MMM-DD-YYYY')).isSameOrBefore(toDate)){
+                                            // console.log(rows[x]); 
                                             var dayout = moment(rows[x].dateout + " " + rows[x].timeout, 'DD-MM-YYYY HH:mm:ss').format('MMM-D-YY HH:mm:ss');
                                             var totalHours = moment.utc(moment(dayout).diff(moment(dayin))).subtract({hours: 1}).format('HH:mm:ss');
                                             row['Finish_time'] = rows[x].timeout;
@@ -191,20 +197,29 @@ function report(bot, message, username, fromDate, toDate){
                                         //push to outer array
                                         if(Object.keys(row).length != 0){
                                             arrayOfRowsToBeAdded.push(row)
+
                                         }
                                     }
                                 }
 
                                 if(arrayOfRowsToBeAdded.length != 0){
                                     arrayOfRowsToBeAdded.map((values, i, arr)=>{
-                                        if(i%2 === 0){
+                                        // console.log(arr);
+                                        // if(i%2 === 0){
                                             var nullValues = { OTH: "", SL: "", VL: "", Total_days: 1,}
-                                            rowsToBeAdded.push(Object.assign({},arr[i], nullValues ,arr[i+1]))
-                                        }
+                                            rowsToBeAdded.push(Object.assign({},arr[i], nullValues ,arr[i]))
+                                        // }
                                     });
-
+                                    
+                                    // arrayOfRowsToBeAdded.forEach(function(element) {
+                                    //     var nullValues = { OTH: "", SL: "", VL: "", Total_days: 1,}
+                                    //     rowsToBeAdded.push(Object.assign({},element, nullValues ,));
+                                    //     // console.log(element);
+                                    // });
+                                    console.log(rowsToBeAdded)
                                     //add the rows in the worksheet that was created
                                     for(var x=0; x<rowsToBeAdded.length;x++){
+                                        // console.log(rowsToBeAdded[x]);
                                         doc.addRow(worksheetNum, rowsToBeAdded[x], (err,row)=>{
                                             if(err) console.log(err)
                                         })
@@ -247,6 +262,11 @@ doc.useServiceAccountAuth(creds, function (err) {
             var timestamp=moment().tz('Asia/Manila').format('HH:mm:ss');
             var id = moment().tz('Asia/Manila').format('MDYY')
             timeIn(bot, message, timestamp, worksheetNum, id);
+        });
+
+        controller.hears(['sample'], 'direct_message,direct_mention,mention', function(bot, message) {
+            console.log('natanggap');
+            bot.reply(message, 'gumagana');
         });
         
         controller.hears(['^out$'], 'direct_message,direct_mention,mention', function(bot,message) {
